@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reserve a Space — SLAM Space Reservations</title>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       SIGN-IN OVERLAY
+       ============================================================ -->
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-box" id="auth-box-main">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">S</div>
+        <div class="auth-logo-text">SLAM<br /><span>Space Reservations</span></div>
+      </div>
+      <h2 class="auth-title">Staff Sign-In</h2>
+      <p class="auth-subtitle">
+        This system is for SLAM! Nevada staff only.<br />
+        Sign in with your <strong>@slamnv.org</strong> Google account to continue.
+      </p>
+      <div id="google-signin-btn"></div>
+      <div class="auth-divider"></div>
+      <p class="auth-note">Having trouble? Contact your school administrator.</p>
+    </div>
+
+    <div class="auth-box auth-denied" id="auth-denied-box" style="display:none">
+      <div class="auth-denied-icon">🚫</div>
+      <h2>Access Denied</h2>
+      <p>This system is only available to SLAM! Nevada staff with an <strong>@slamnv.org</strong> email address.</p>
+      <div class="denied-email" id="denied-email-display"></div>
+      <p style="color:#666;font-size:13px;margin-bottom:16px;">If you believe this is a mistake, please contact your school administrator.</p>
+      <button class="try-again-btn" onclick="location.reload()">Try a Different Account</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SITE HEADER
+       ============================================================ -->
+  <header class="site-header" id="site-header" style="display:none">
+    <div class="header-inner">
+      <a href="index.html" class="header-logo">
+        <div class="header-logo-icon">S</div>
+        <div class="header-logo-text">SLAM <span>Reservations</span></div>
+      </a>
+
+      <button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" onclick="toggleNav()">☰</button>
+
+      <nav class="header-nav" id="header-nav">
+        <a href="index.html" class="nav-link">📅 Calendar</a>
+        <a href="reserve.html" class="nav-link active">+ Reserve a Space</a>
+      </nav>
+
+      <div class="header-user" id="header-user">
+        <img class="user-avatar" id="user-avatar" src="" alt="User avatar" />
+        <span class="user-name" id="user-name"></span>
+        <button class="signout-btn" onclick="Auth.signOut()">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       MAIN CONTENT
+       ============================================================ -->
+  <main class="page-content" id="main-content" style="display:none">
+
+    <div class="page-header">
+      <h1 class="page-title">Reserve a <span>Space</span></h1>
+      <p class="page-subtitle">Complete each step below to submit your reservation request.</p>
+    </div>
+
+    <div class="form-wrapper">
+      <div class="form-card">
+        <!-- Form wizard built and injected by form.js -->
+        <div id="form-container"></div>
+        <!-- Confirmation screen also lives inside form-wrapper, outside form-card -->
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="site-footer" id="site-footer" style="display:none">
+    <p>SLAM Space Reservations &nbsp;·&nbsp; For staff use only &nbsp;·&nbsp; <a href="https://slamnvathletics.org" target="_blank">SLAM Athletics ↗</a></p>
+  </footer>
+
+  <!-- ============================================================
+       SCRIPTS
+       ============================================================ -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/form.js"></script>
+
+  <script>
+    function showSite(user) {
+      document.getElementById('auth-overlay').classList.add('hidden');
+      document.getElementById('site-header').style.display = '';
+      document.getElementById('main-content').style.display = '';
+      document.getElementById('site-footer').style.display = '';
+
+      const avatar = document.getElementById('user-avatar');
+      if (user.picture) avatar.src = user.picture;
+      else avatar.style.display = 'none';
+      document.getElementById('user-name').textContent = user.given_name || user.name;
+
+      // Pre-fill teacher name from Google account
+      ReservationForm.data.teacherName = user.name || '';
+      ReservationForm.init();
+    }
+
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        Auth.init({
+          onSuccess: showSite,
+          onNeedSignIn: () => {},
+          onWrongDomain: (email) => {
+            document.getElementById('auth-box-main').style.display = 'none';
+            document.getElementById('auth-denied-box').style.display = 'block';
+            document.getElementById('denied-email-display').textContent = email;
+          },
+        });
+      }, 300);
+    });
+
+    function toggleNav() {
+      document.getElementById('header-nav').classList.toggle('open');
+    }
+  </script>
+</body>
+</html>

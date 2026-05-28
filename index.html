@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SLAM Space Reservations</title>
+  <meta name="description" content="SLAM! Nevada staff space reservation system. View available spaces and submit reservation requests." />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!-- FullCalendar v6 -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       SIGN-IN OVERLAY — hidden once user is authenticated
+       ============================================================ -->
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="auth-box" id="auth-box-main">
+      <div class="auth-logo">
+        <div class="auth-logo-icon">S</div>
+        <div class="auth-logo-text">SLAM<br /><span>Space Reservations</span></div>
+      </div>
+      <h2 class="auth-title">Staff Sign-In</h2>
+      <p class="auth-subtitle">
+        This system is for SLAM! Nevada staff only.<br />
+        Sign in with your <strong>@slamnv.org</strong> Google account to continue.
+      </p>
+      <!-- Google renders the sign-in button into this element -->
+      <div id="google-signin-btn"></div>
+      <div class="auth-divider"></div>
+      <p class="auth-note">Having trouble? Contact your school administrator.</p>
+    </div>
+
+    <!-- Wrong domain message (shown instead of auth-box-main) -->
+    <div class="auth-box auth-denied" id="auth-denied-box" style="display:none">
+      <div class="auth-denied-icon">🚫</div>
+      <h2>Access Denied</h2>
+      <p>This system is only available to SLAM! Nevada staff with an <strong>@slamnv.org</strong> email address.</p>
+      <div class="denied-email" id="denied-email-display"></div>
+      <p style="color:#666;font-size:13px;margin-bottom:16px;">If you believe this is a mistake, please contact your school administrator.</p>
+      <button class="try-again-btn" onclick="location.reload()">Try a Different Account</button>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       SITE HEADER
+       ============================================================ -->
+  <header class="site-header" id="site-header" style="display:none">
+    <div class="header-inner">
+      <a href="index.html" class="header-logo">
+        <div class="header-logo-icon">S</div>
+        <div class="header-logo-text">SLAM <span>Reservations</span></div>
+      </a>
+
+      <button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" onclick="toggleNav()">☰</button>
+
+      <nav class="header-nav" id="header-nav">
+        <a href="index.html" class="nav-link active">📅 Calendar</a>
+        <a href="reserve.html" class="nav-link">+ Reserve a Space</a>
+      </nav>
+
+      <div class="header-user" id="header-user">
+        <img class="user-avatar" id="user-avatar" src="" alt="User avatar" />
+        <span class="user-name" id="user-name"></span>
+        <button class="signout-btn" onclick="Auth.signOut()">Sign Out</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       MAIN CONTENT
+       ============================================================ -->
+  <main class="page-content" id="main-content" style="display:none">
+
+    <div class="page-header">
+      <h1 class="page-title">Space <span>Calendar</span></h1>
+      <p class="page-subtitle">View all upcoming space reservations. Click any event for details.</p>
+    </div>
+
+    <!-- Space legend -->
+    <div class="space-legend" id="space-legend">
+      <!-- Populated by JS using CONFIG.SPACES -->
+    </div>
+
+    <!-- Calendar card -->
+    <div class="calendar-card">
+      <div class="calendar-card-header">
+        <span class="calendar-card-title">Reservations Calendar</span>
+      </div>
+      <div class="calendar-body">
+        <div class="calendar-loading" id="calendar-loading">
+          <div class="spinner"></div>
+          <span class="loading-text">Loading reservations…</span>
+        </div>
+        <div class="calendar-error" id="calendar-error"></div>
+        <div id="calendar"></div>
+      </div>
+    </div>
+
+    <!-- Upcoming reservations list -->
+    <div class="upcoming-card">
+      <div class="upcoming-card-header">
+        <span class="upcoming-card-title">Upcoming Reservations</span>
+      </div>
+      <div class="upcoming-list-inner" id="upcoming-list">
+        <p class="no-events">Loading…</p>
+      </div>
+    </div>
+
+    <!-- CTA to reserve -->
+    <div class="reserve-cta">
+      <div class="cta-text">
+        <h3>Need to reserve a space?</h3>
+        <p>Submit a request and an admin will review it.</p>
+      </div>
+      <a href="reserve.html" class="cta-btn">Reserve a Space →</a>
+    </div>
+  </main>
+
+  <!-- Event detail modal -->
+  <div class="modal-overlay" id="event-modal" onclick="if(event.target===this)CalendarView.closeModal()">
+    <div class="modal-box">
+      <div id="event-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="site-footer" id="site-footer" style="display:none">
+    <p>SLAM Space Reservations &nbsp;·&nbsp; For staff use only &nbsp;·&nbsp; <a href="https://slamnvathletics.org" target="_blank">SLAM Athletics ↗</a></p>
+  </footer>
+
+  <!-- ============================================================
+       SCRIPTS
+       ============================================================ -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/calendar.js"></script>
+
+  <script>
+    // ---- Build the space legend ----
+    function buildLegend() {
+      const el = document.getElementById('space-legend');
+      CONFIG.SPACES.forEach((s) => {
+        const item = document.createElement('div');
+        item.className = 'legend-item';
+        item.innerHTML = `<div class="legend-dot" style="background:${s.color}"></div>${s.label}`;
+        el.appendChild(item);
+      });
+    }
+
+    // ---- Show the main site once signed in ----
+    function showSite(user) {
+      document.getElementById('auth-overlay').classList.add('hidden');
+      document.getElementById('site-header').style.display = '';
+      document.getElementById('main-content').style.display = '';
+      document.getElementById('site-footer').style.display = '';
+
+      // Populate user info in header
+      const avatar = document.getElementById('user-avatar');
+      if (user.picture) avatar.src = user.picture;
+      else avatar.style.display = 'none';
+      document.getElementById('user-name').textContent = user.given_name || user.name;
+
+      buildLegend();
+      CalendarView.init();
+    }
+
+    // ---- Auth initialization ----
+    // Wait for Google GIS library to load before initializing
+    window.addEventListener('load', () => {
+      // Small delay to ensure GIS script is ready
+      setTimeout(() => {
+        Auth.init({
+          onSuccess: showSite,
+          onNeedSignIn: () => { /* overlay is already visible */ },
+          onWrongDomain: (email) => {
+            document.getElementById('auth-box-main').style.display = 'none';
+            document.getElementById('auth-denied-box').style.display = 'block';
+            document.getElementById('denied-email-display').textContent = email;
+          },
+        });
+      }, 300);
+    });
+
+    // ---- Mobile nav toggle ----
+    function toggleNav() {
+      document.getElementById('header-nav').classList.toggle('open');
+    }
+  </script>
+</body>
+</html>
