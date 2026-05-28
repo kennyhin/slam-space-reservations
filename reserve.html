@@ -17,10 +17,16 @@
 <body>
 
   <!-- ============================================================
-       SIGN-IN OVERLAY
+       AUTH OVERLAY — spinner first, sign-in only if needed
        ============================================================ -->
   <div class="auth-overlay" id="auth-overlay">
-    <div class="auth-box" id="auth-box-main">
+
+    <div id="auth-loading" class="auth-loading-screen">
+      <div class="auth-spinner-ring"></div>
+      <span class="auth-loading-label">Loading</span>
+    </div>
+
+    <div class="auth-box" id="auth-box-main" style="display:none">
       <div class="auth-logo">
         <div class="auth-logo-icon">S</div>
         <div class="auth-logo-text">SLAM<br /><span>Space Reservations</span></div>
@@ -127,9 +133,12 @@
       setTimeout(() => {
         Auth.init({
           onSuccess: showSite,
-          onNeedSignIn: () => {},
+          onNeedSignIn: () => {
+            document.getElementById('auth-loading').style.display = 'none';
+            document.getElementById('auth-box-main').style.display = 'block';
+          },
           onWrongDomain: (email) => {
-            document.getElementById('auth-box-main').style.display = 'none';
+            document.getElementById('auth-loading').style.display = 'none';
             document.getElementById('auth-denied-box').style.display = 'block';
             document.getElementById('denied-email-display').textContent = email;
           },

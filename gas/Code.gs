@@ -302,10 +302,7 @@ function sendSubmissionEmails(data, submitterEmail) {
     'Time:     ' + timeStr          + '\n' +
     'Purpose:  ' + data.purpose     + '\n' +
     'Grade:    ' + data.gradeLevel  + '\n' +
-    '────────────────────────\n\n' +
-    'You will receive another email once your request has been reviewed.\n\n' +
-    'SLAM Space Reservations\n' +
-    'For SLAM! Nevada staff use only.';
+    '────────────────────────';
 
   MailApp.sendEmail({
     to:      submitterEmail,
@@ -335,22 +332,19 @@ function sendSubmissionEmails(data, submitterEmail) {
 
 function sendApprovalEmail(submitterEmail, teacherName, space, date, startTime, endTime, purpose) {
   const spaceName = SPACE_LABELS[space] || space;
-  const dateStr   = formatDateLong(String(date));
-  const timeStr   = formatTime12(String(startTime)) + ' – ' + formatTime12(String(endTime));
+  const dateStr   = formatDateLong(date);
+  const timeStr   = formatTime12(startTime) + ' – ' + formatTime12(endTime);
 
   const body =
     'Hi ' + teacherName + ',\n\n' +
-    'Great news — your space reservation has been approved! It has been added to the ' + spaceName + ' calendar.\n\n' +
+    'Your space reservation has been approved! It has been added to the ' + spaceName + ' calendar.\n\n' +
     'APPROVED RESERVATION\n' +
     '────────────────────────\n' +
     'Space:    ' + spaceName + '\n' +
     'Date:     ' + dateStr   + '\n' +
     'Time:     ' + timeStr   + '\n' +
     'Purpose:  ' + purpose   + '\n' +
-    '────────────────────────\n\n' +
-    'If you need to make any changes or cancel this reservation, please contact your administrator.\n\n' +
-    'SLAM Space Reservations\n' +
-    'For SLAM! Nevada staff use only.';
+    '────────────────────────';
 
   MailApp.sendEmail({
     to:      submitterEmail,
@@ -391,24 +385,29 @@ function denySelected() {
 // HELPERS
 // ============================================================
 
-function formatDateLong(dateStr) {
-  if (!dateStr) return '';
+function formatDateLong(val) {
+  if (!val) return '';
   try {
-    const d = new Date(dateStr + 'T00:00:00');
+    // Google Sheets returns Date objects; fallback handles plain strings
+    const d = (val instanceof Date) ? val : new Date(String(val).length === 10 ? val + 'T00:00:00' : val);
     return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-  } catch (e) { return String(dateStr); }
+  } catch (e) { return String(val); }
 }
 
-function formatTime12(timeStr) {
-  if (!timeStr) return '';
+function formatTime12(val) {
+  if (val === null || val === undefined || val === '') return '';
   try {
-    const parts = String(timeStr).split(':');
+    if (val instanceof Date) {
+      // Sheets stores times as Date objects anchored at 12/30/1899
+      const h = val.getHours();
+      const m = String(val.getMinutes()).padStart(2, '0');
+      return (h % 12 || 12) + ':' + m + ' ' + (h >= 12 ? 'PM' : 'AM');
+    }
+    const parts = String(val).split(':');
     const h = parseInt(parts[0]);
-    const m = parts[1] || '00';
-    const ampm  = h >= 12 ? 'PM' : 'AM';
-    const hour12 = h % 12 || 12;
-    return hour12 + ':' + m + ' ' + ampm;
-  } catch (e) { return String(timeStr); }
+    const m = (parts[1] || '00').substring(0, 2);
+    return (h % 12 || 12) + ':' + m + ' ' + (h >= 12 ? 'PM' : 'AM');
+  } catch (e) { return String(val); }
 }
 
 function jsonResponse(data) {

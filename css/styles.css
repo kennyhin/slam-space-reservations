@@ -125,6 +125,34 @@ h1, h2, h3 {
 .auth-divider { height: 1px; background: #1e3a24; margin: 24px 0; }
 .auth-note { font-size: 12px; color: #444; margin-top: 20px; }
 
+/* Loading spinner (shown on every page load before auth check completes) */
+.auth-loading-screen {
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  animation: fadeIn 0.25s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.auth-spinner-ring {
+  width: 52px; height: 52px;
+  border: 3px solid rgba(255,255,255,0.07);
+  border-top-color: var(--primary);
+  border-right-color: var(--slam-green);
+  border-radius: 50%;
+  animation: spin 0.85s linear infinite;
+}
+.auth-loading-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; letter-spacing: 0.18em;
+  text-transform: uppercase; color: #444;
+}
+
+/* Smooth fade-in when auth-box appears */
+.auth-box { animation: fadeSlideUp 0.28s ease; }
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Wrong domain */
 .auth-denied .auth-denied-icon { font-size: 48px; margin-bottom: 16px; }
 .auth-denied h2 { color: var(--slam-red); font-size: 28px; margin-bottom: 8px; }
@@ -219,27 +247,28 @@ h1, h2, h3 {
 .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 
 /* ============================================================
-   CALENDAR CARD
+   CALENDAR CARD — dark modern theme
    ============================================================ */
 .calendar-card {
-  background: var(--slam-white);
+  background: #0f1117;
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.35);
   overflow: hidden;
   margin-bottom: 28px;
-  border: 1px solid var(--gray-border);
+  border: 1px solid rgba(255,255,255,0.07);
 }
 .calendar-card-header {
-  background: var(--slam-black);
+  background: #0b0c10;
   padding: 16px 24px;
   display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 .calendar-card-title {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 20px; color: var(--slam-white);
   text-transform: uppercase; letter-spacing: 0.04em;
 }
-.calendar-body { padding: 20px; position: relative; }
+.calendar-body { padding: 16px; position: relative; background: #0f1117; }
 
 .calendar-loading {
   position: absolute; inset: 0; background: rgba(255,255,255,0.9);
@@ -262,36 +291,92 @@ h1, h2, h3 {
   font-size: 14px; margin-bottom: 16px;
 }
 
-/* FullCalendar overrides */
-.fc { font-family: 'Inter', sans-serif; }
+/* FullCalendar — dark modern theme */
+.fc { font-family: 'Inter', sans-serif; background: transparent; color: #e5e7eb; }
+
+/* Toolbar buttons */
 .fc .fc-button {
-  background: var(--slam-black) !important; border-color: var(--slam-black) !important;
-  font-size: 13px !important; font-weight: 600 !important;
+  background: rgba(255,255,255,0.08) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  color: #d1d5db !important;
+  font-size: 12px !important; font-weight: 600 !important;
   padding: 6px 16px !important; border-radius: 50px !important;
-  transition: opacity 0.15s !important;
+  transition: all 0.15s !important;
 }
-.fc .fc-button:hover { opacity: 0.8 !important; }
+.fc .fc-button:hover { background: rgba(255,255,255,0.14) !important; color: white !important; }
 .fc .fc-button-active, .fc .fc-button:not(:disabled):active {
-  background: var(--primary) !important; border-color: var(--primary) !important;
+  background: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
 }
 .fc .fc-toolbar-title {
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 22px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.02em;
+  color: #f9fafb;
 }
+
+/* Grid lines */
+.fc-theme-standard td,
+.fc-theme-standard th,
+.fc .fc-scrollgrid { border-color: rgba(255,255,255,0.07) !important; }
+
+/* Column header (day names) */
 .fc .fc-col-header-cell {
-  background: var(--gray-light);
-  font-weight: 700; font-size: 12px;
-  text-transform: uppercase; letter-spacing: 0.06em; color: var(--gray-medium);
+  background: rgba(255,255,255,0.04);
+  font-weight: 700; font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.08em; color: #6b7280;
+  padding: 10px 0;
 }
-.fc .fc-daygrid-day-number { font-weight: 600; font-size: 13px; }
-.fc .fc-daygrid-day.fc-day-today { background: var(--primary-light) !important; }
+
+/* Day cells */
+.fc .fc-daygrid-day { background: transparent; }
+.fc .fc-daygrid-day:hover { background: rgba(255,255,255,0.025) !important; }
+.fc .fc-daygrid-day-frame { min-height: 90px; padding: 4px; }
+
+/* Day numbers */
+.fc .fc-daygrid-day-number {
+  color: #9ca3af; font-weight: 600; font-size: 13px;
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin: 4px; transition: background 0.15s;
+}
+.fc .fc-daygrid-day:hover .fc-daygrid-day-number { color: white; }
+.fc .fc-day-other .fc-daygrid-day-number { color: #374151; }
+
+/* Today */
+.fc .fc-daygrid-day.fc-day-today { background: rgba(22,163,74,0.08) !important; }
+.fc .fc-daygrid-day.fc-day-today .fc-daygrid-day-number {
+  background: var(--primary); color: white !important;
+}
+
+/* Time grid (week view) */
+.fc .fc-timegrid-slot        { border-color: rgba(255,255,255,0.04) !important; height: 40px; }
+.fc .fc-timegrid-slot-label  { color: #4b5563; font-size: 11px; font-weight: 500; padding-right: 8px; }
+.fc .fc-timegrid-axis        { border-color: rgba(255,255,255,0.04) !important; }
+.fc .fc-timegrid-col         { background: transparent; }
+.fc .fc-timegrid-col.fc-day-today { background: rgba(22,163,74,0.04) !important; }
+.fc .fc-timegrid-now-indicator-line  { border-color: var(--primary) !important; border-width: 2px; }
+.fc .fc-timegrid-now-indicator-arrow { border-top-color: var(--primary) !important; border-bottom-color: var(--primary) !important; }
+
+/* Events */
 .fc .fc-event {
-  border-radius: 6px !important; font-size: 12px !important;
-  font-weight: 600 !important; padding: 2px 6px !important;
-  cursor: pointer; transition: opacity 0.15s;
+  border-radius: 8px !important; font-size: 12px !important;
+  font-weight: 600 !important; padding: 3px 8px !important;
+  cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+  border: none !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
-.fc .fc-event:hover { opacity: 0.85; }
+.fc .fc-event:hover { opacity: 0.9; transform: translateY(-1px); }
+.fc .fc-daygrid-event { margin: 1px 2px !important; border-radius: 6px !important; }
+
+/* List view */
+.fc .fc-list-day-cushion       { background: rgba(255,255,255,0.04); }
+.fc .fc-list-day-text,
+.fc .fc-list-day-side-text     { color: #9ca3af; }
+.fc .fc-list-event:hover td    { background: rgba(255,255,255,0.04) !important; }
+.fc .fc-list-event-title       { color: #e5e7eb; }
+.fc .fc-list-empty             { background: transparent; color: #6b7280; }
 
 /* ============================================================
    UPCOMING RESERVATIONS

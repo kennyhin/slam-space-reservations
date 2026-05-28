@@ -12,17 +12,23 @@ const CalendarView = {
     if (!el) return;
 
     this.calendar = new FullCalendar.Calendar(el, {
-      initialView: this._isMobile() ? 'listWeek' : 'dayGridMonth',
+      initialView: this._isMobile() ? 'listWeek' : 'timeGridWeek',
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',
         right: 'dayGridMonth,timeGridWeek,listWeek',
       },
       buttonText: { today: 'Today', month: 'Month', week: 'Week', list: 'List' },
-      height: 'auto',
-      expandRows: true,
+      height: 680,
+      expandRows: false,
       nowIndicator: true,
-      dayMaxEvents: 3,
+      scrollTime: '07:00:00',
+      slotMinTime: '06:00:00',
+      slotMaxTime: '22:00:00',
+      slotDuration: '00:30:00',
+      slotLabelInterval: '01:00:00',
+      allDaySlot: false,
+      dayMaxEvents: true,
       eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
       eventClick: (info) => this._showEventDetail(info.event),
       events: [],

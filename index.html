@@ -21,10 +21,19 @@
 <body>
 
   <!-- ============================================================
-       SIGN-IN OVERLAY — hidden once user is authenticated
+       AUTH OVERLAY — starts as a spinner, transitions to sign-in
+       only if the user is not already authenticated
        ============================================================ -->
   <div class="auth-overlay" id="auth-overlay">
-    <div class="auth-box" id="auth-box-main">
+
+    <!-- Loading spinner (always shown first) -->
+    <div id="auth-loading" class="auth-loading-screen">
+      <div class="auth-spinner-ring"></div>
+      <span class="auth-loading-label">Loading</span>
+    </div>
+
+    <!-- Sign-in box (hidden until auth check determines sign-in needed) -->
+    <div class="auth-box" id="auth-box-main" style="display:none">
       <div class="auth-logo">
         <div class="auth-logo-icon">S</div>
         <div class="auth-logo-text">SLAM<br /><span>Space Reservations</span></div>
@@ -34,13 +43,12 @@
         This system is for SLAM! Nevada staff only.<br />
         Sign in with your <strong>@slamnv.org</strong> Google account to continue.
       </p>
-      <!-- Google renders the sign-in button into this element -->
       <div id="google-signin-btn"></div>
       <div class="auth-divider"></div>
       <p class="auth-note">Having trouble? Contact your school administrator.</p>
     </div>
 
-    <!-- Wrong domain message (shown instead of auth-box-main) -->
+    <!-- Wrong domain (hidden until needed) -->
     <div class="auth-box auth-denied" id="auth-denied-box" style="display:none">
       <div class="auth-denied-icon">🚫</div>
       <h2>Access Denied</h2>
@@ -180,15 +188,17 @@
     }
 
     // ---- Auth initialization ----
-    // Wait for Google GIS library to load before initializing
     window.addEventListener('load', () => {
-      // Small delay to ensure GIS script is ready
       setTimeout(() => {
         Auth.init({
           onSuccess: showSite,
-          onNeedSignIn: () => { /* overlay is already visible */ },
+          onNeedSignIn: () => {
+            // Swap spinner for sign-in form
+            document.getElementById('auth-loading').style.display = 'none';
+            document.getElementById('auth-box-main').style.display = 'block';
+          },
           onWrongDomain: (email) => {
-            document.getElementById('auth-box-main').style.display = 'none';
+            document.getElementById('auth-loading').style.display = 'none';
             document.getElementById('auth-denied-box').style.display = 'block';
             document.getElementById('denied-email-display').textContent = email;
           },
