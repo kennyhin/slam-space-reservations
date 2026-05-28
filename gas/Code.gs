@@ -1,137 +1,108 @@
 // ============================================================
-// Code.gs — SLAM Space Reservations — Google Apps Script Backend
+// Code.gs — SLAM Space Reservations Backend
 // ============================================================
-// Deploy this as a Web App:
+// Deploy as Web App:
 //   Execute as: Me
-//   Who has access: Anyone with a Google account
+//   Who has access: Anyone
 //
 // After deploying, copy the Web App URL into js/config.js
 // ============================================================
 
 // ---- CONFIGURATION -----------------------------------------
-// Update these Calendar IDs to match your Google Calendars.
-// Find each Calendar ID in Google Calendar:
-//   Settings → click the calendar → "Calendar ID" field
-// ------------------------------------------------------------
 const CALENDAR_IDS = {
-  'cafegym':            'YOUR_CAFEGYM_CALENDAR_ID@group.calendar.google.com',
-  'es-turf':            'YOUR_ES_TURF_CALENDAR_ID@group.calendar.google.com',
-  'kinder-playground':  'YOUR_KINDER_CALENDAR_ID@group.calendar.google.com',
+  'cafegym':           'c_312121ab4260fc7d2045f8298fd1aa135c36d62f7dba93137d4a70c177b5ce72@group.calendar.google.com',
+  'es-turf':           'c_a5a420a35120dc73009599256852b43f3707ca70a2af0ea6b3de2311d5cfce7a@group.calendar.google.com',
+  'kinder-playground': 'c_e58aaacc91b7d88d6dc7937e2ee8a1799d1efdc338f60f3daefa301cdd25c91b@group.calendar.google.com',
 };
 
-// Name of the Google Sheet tab where submissions are logged
-const SHEET_NAME = 'Reservations';
+const SPACE_LABELS = {
+  'cafegym':           'Cafegym',
+  'es-turf':           'ES Turf',
+  'kinder-playground': 'Kinder Playground',
+};
 
-// Only emails from this domain are allowed to use the system
+const SHEET_NAME     = 'Reservations';
 const ALLOWED_DOMAIN = 'slamnv.org';
+const ADMIN_EMAIL    = 'kenny.hin@slamnv.org';
+const DAYS_AHEAD     = 90;
 
-// How many days ahead to return events for the calendar view
-const DAYS_AHEAD = 90;
+// Sheet column numbers (1-based)
+const COL = {
+  TIMESTAMP:    1,
+  SUBMITTED_BY: 2,
+  TEACHER_NAME: 3,
+  GRADE_LEVEL:  4,
+  PURPOSE:      5,
+  SPACE:        6,
+  DATE:         7,
+  START_TIME:   8,
+  END_TIME:     9,
+  STATUS:       10,
+  APPROVE:      11,  // checkbox — check to approve
+};
 
 // ============================================================
-// ENTRY POINTS
+// WEB APP ENTRY POINTS
 // ============================================================
 
 function doGet(e) {
   try {
-    // CORS preflight
-    if (e.parameter.action === 'ping') {
-      return jsonResponse({ ok: true });
-    }
+    const auth = verifyToken(e.parameter.token);
+    if (!auth.valid) return jsonResponse({ error: 'Unauthorized', message: auth.message });
 
-    // Verify the Google ID token sent from the frontend
-    const token = e.parameter.token;
-    const auth = verifyToken(token);
-    if (!auth.valid) {
-      return jsonResponse({ error: 'Unauthorized', message: auth.message }, 403);
-    }
-
-    const events = getAllCalendarEvents();
-    return jsonResponse({ success: true, events });
-
+    return jsonResponse({ success: true, events: getAllCalendarEvents() });
   } catch (err) {
     Logger.log('doGet error: ' + err.message);
-    return jsonResponse({ error: err.message }, 500);
+    return jsonResponse({ error: err.message });
   }
 }
 
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
-
-    // Verify the Google ID token
     const auth = verifyToken(data.token);
-    if (!auth.valid) {
-      return jsonResponse({ error: 'Unauthorized', message: auth.message }, 403);
-    }
+    if (!auth.valid) return jsonResponse({ error: 'Unauthorized', message: auth.message });
 
-    // Validate required fields
-    const required = ['teacherName', 'gradeLevel', 'purpose', 'space', 'date', 'startTime', 'endTime'];
+    const required = ['teacherName','gradeLevel','purpose','space','date','startTime','endTime'];
     for (const field of required) {
-      if (!data[field]) {
-        return jsonResponse({ success: false, message: `Missing field: ${field}` });
-      }
+      if (!data[field]) return jsonResponse({ success: false, message: 'Missing field: ' + field });
     }
 
-    // Check that the space is valid
-    if (!CALENDAR_IDS[data.space]) {
-      return jsonResponse({ success: false, message: 'Invalid space selected.' });
-    }
+    if (!CALENDAR_IDS[data.space]) return jsonResponse({ success: false, message: 'Invalid space.' });
 
-    // Check for scheduling conflicts before saving
     const conflict = checkConflict(data.space, data.date, data.startTime, data.endTime);
     if (conflict) {
       return jsonResponse({
-        success: false,
-        conflict: true,
-        message: `This space already has a reservation during that time: "${conflict.title}". Please choose a different time or space.`,
+        success: false, conflict: true,
+        message: 'This space already has a reservation during that time: "' + conflict.title + '". Please choose a different time or space.',
       });
     }
 
-    // Save the request to Google Sheets as Pending
     saveToSheet(data, auth.email);
+    sendSubmissionEmails(data, auth.email);
 
-    return jsonResponse({
-      success: true,
-      message: 'Your reservation request has been submitted and is pending admin approval.',
-    });
-
+    return jsonResponse({ success: true, message: 'Request submitted successfully.' });
   } catch (err) {
     Logger.log('doPost error: ' + err.message);
-    return jsonResponse({ error: err.message }, 500);
+    return jsonResponse({ error: err.message });
   }
 }
 
 // ============================================================
 // TOKEN VERIFICATION
 // ============================================================
-// Validates the Google ID token sent from the browser.
-// Calls Google's tokeninfo endpoint to confirm authenticity
-// and checks that the email belongs to the allowed domain.
-// ============================================================
 
 function verifyToken(token) {
   if (!token) return { valid: false, message: 'No token provided.' };
-
   try {
-    const res = UrlFetchApp.fetch(
-      'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token),
-      { muteHttpExceptions: true }
-    );
+    const res     = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token), { muteHttpExceptions: true });
     const payload = JSON.parse(res.getContentText());
 
-    if (payload.error || !payload.email) {
-      return { valid: false, message: 'Invalid or expired token. Please refresh and sign in again.' };
-    }
-
-    if (!payload.email.endsWith('@' + ALLOWED_DOMAIN)) {
-      return { valid: false, message: 'Email domain not permitted.' };
-    }
+    if (payload.error || !payload.email) return { valid: false, message: 'Invalid or expired token. Please sign in again.' };
+    if (!payload.email.endsWith('@' + ALLOWED_DOMAIN)) return { valid: false, message: 'Email domain not permitted.' };
 
     return { valid: true, email: payload.email, name: payload.name };
-
   } catch (err) {
-    Logger.log('Token verification failed: ' + err.message);
     return { valid: false, message: 'Token verification failed.' };
   }
 }
@@ -141,23 +112,16 @@ function verifyToken(token) {
 // ============================================================
 
 function getAllCalendarEvents() {
-  const now = new Date();
+  const now    = new Date();
   const future = new Date();
   future.setDate(future.getDate() + DAYS_AHEAD);
 
   const allEvents = [];
-
   for (const [spaceId, calendarId] of Object.entries(CALENDAR_IDS)) {
     try {
       const cal = CalendarApp.getCalendarById(calendarId);
-      if (!cal) {
-        Logger.log('Calendar not found: ' + calendarId);
-        continue;
-      }
-
-      const events = cal.getEvents(now, future);
-
-      for (const event of events) {
+      if (!cal) continue;
+      for (const event of cal.getEvents(now, future)) {
         allEvents.push({
           id:          event.getId(),
           title:       event.getTitle(),
@@ -171,8 +135,6 @@ function getAllCalendarEvents() {
       Logger.log('Error fetching calendar ' + calendarId + ': ' + err.message);
     }
   }
-
-  // Sort by start time
   allEvents.sort((a, b) => new Date(a.start) - new Date(b.start));
   return allEvents;
 }
@@ -180,182 +142,275 @@ function getAllCalendarEvents() {
 // ============================================================
 // CONFLICT CHECK
 // ============================================================
-// Checks whether the requested space already has a calendar
-// event that overlaps with the requested date/time window.
-// ============================================================
 
 function checkConflict(space, date, startTime, endTime) {
   const calendarId = CALENDAR_IDS[space];
   if (!calendarId) return null;
 
-  // Build Date objects from the date + time strings
-  const startDt = new Date(date + 'T' + startTime + ':00');
-  const endDt   = new Date(date + 'T' + endTime   + ':00');
-
-  // Shrink window by 1 minute on each side so back-to-back
-  // reservations (e.g. 9:00–10:00 and 10:00–11:00) don't conflict
+  const startDt    = new Date(date + 'T' + startTime + ':00');
+  const endDt      = new Date(date + 'T' + endTime   + ':00');
   const checkStart = new Date(startDt.getTime() + 60000);
   const checkEnd   = new Date(endDt.getTime()   - 60000);
 
   try {
-    const cal = CalendarApp.getCalendarById(calendarId);
+    const cal      = CalendarApp.getCalendarById(calendarId);
     if (!cal) return null;
-
     const conflicts = cal.getEvents(checkStart, checkEnd);
-    if (conflicts.length > 0) {
-      return { title: conflicts[0].getTitle() };
-    }
+    if (conflicts.length > 0) return { title: conflicts[0].getTitle() };
   } catch (err) {
     Logger.log('Conflict check error: ' + err.message);
   }
-
   return null;
 }
 
 // ============================================================
-// GOOGLE SHEETS — SAVE SUBMISSION
+// GOOGLE SHEETS — SAVE + SETUP
 // ============================================================
 
 function saveToSheet(data, submitterEmail) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  let sheet = ss.getSheetByName(SHEET_NAME);
+  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  let   sheet = ss.getSheetByName(SHEET_NAME);
 
-  // Create the sheet and header row if it doesn't exist yet
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
-    const headers = [
-      'Timestamp', 'Submitted By', 'Teacher Name', 'Grade Level',
-      'Purpose', 'Space', 'Date', 'Start Time', 'End Time', 'Status'
-    ];
+    const headers = ['Timestamp','Submitted By','Teacher Name','Grade Level','Purpose','Space','Date','Start Time','End Time','Status','Approve ☐'];
     sheet.appendRow(headers);
-    sheet.getRange(1, 1, 1, headers.length)
-      .setFontWeight('bold')
-      .setBackground('#0B0B0B')
-      .setFontColor('#FFFFFF');
+    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#0B0B0B').setFontColor('#FFFFFF');
     sheet.setFrozenRows(1);
-    sheet.setColumnWidths(1, headers.length, 160);
+    sheet.setColumnWidths(1, 10, 145);
+    sheet.setColumnWidth(COL.APPROVE, 80);
   }
 
+  const newRow = sheet.getLastRow() + 1;
   sheet.appendRow([
-    new Date(),          // Timestamp
-    submitterEmail,      // Submitted By (from verified Google token)
-    data.teacherName,
-    data.gradeLevel,
-    data.purpose,
-    data.space,
-    data.date,
-    data.startTime,
-    data.endTime,
-    'Pending',           // Status — admin changes this to Approved/Denied
+    new Date(), submitterEmail,
+    data.teacherName, data.gradeLevel, data.purpose,
+    data.space, data.date, data.startTime, data.endTime,
+    'Pending', false,
   ]);
+
+  // Add a proper checkbox in the Approve column
+  sheet.getRange(newRow, COL.APPROVE).insertCheckboxes();
+
+  // Color the status cell yellow for Pending
+  sheet.getRange(newRow, COL.STATUS).setBackground('#FEF9C3').setFontColor('#92400E');
 }
 
 // ============================================================
-// ADMIN FUNCTION — Approve a reservation
+// CHECKBOX APPROVAL — onEdit trigger
 // ============================================================
-// HOW TO USE:
-// 1. Open the Google Sheet
-// 2. Click on any cell in the row you want to approve
-// 3. In Apps Script editor: Run → approveReservation
-// OR add a custom menu (see addAdminMenu below)
+// IMPORTANT: This requires an INSTALLABLE trigger, not a simple one.
+// Set it up once:
+//   1. In Apps Script, click the clock icon (Triggers) in the left sidebar
+//   2. Click "+ Add Trigger"
+//   3. Function: onEdit | Event source: From spreadsheet | Event type: On edit
+//   4. Save and grant permissions
 // ============================================================
 
-function approveReservation() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-  if (!sheet) {
-    SpreadsheetApp.getUi().alert('No Reservations sheet found.');
-    return;
-  }
+function onEdit(e) {
+  const range = e.range;
+  const sheet = range.getSheet();
 
-  const row = sheet.getActiveRange().getRow();
-  if (row < 2) {
-    SpreadsheetApp.getUi().alert('Please click on a data row first (not the header).');
-    return;
-  }
+  // Only act on the Reservations sheet, Approve column, data rows
+  if (sheet.getName() !== SHEET_NAME) return;
+  if (range.getColumn() !== COL.APPROVE) return;
+  if (range.getRow() < 2) return;
 
-  const values = sheet.getRange(row, 1, 1, 10).getValues()[0];
-  const [timestamp, submitter, teacherName, gradeLevel, purpose, space, date, startTime, endTime, status] = values;
+  const isChecked = e.value === 'TRUE' || e.value === true;
+  if (!isChecked) return;
+
+  const row = range.getRow();
+
+  try {
+    approveRow(row, sheet);
+  } catch (err) {
+    Logger.log('onEdit approval error: ' + err.message);
+    // Uncheck the box so admin can try again
+    range.setValue(false);
+    SpreadsheetApp.getUi().alert('Error during approval: ' + err.message);
+  }
+}
+
+function approveRow(row, sheet) {
+  const values = sheet.getRange(row, 1, 1, COL.APPROVE).getValues()[0];
+  const submitterEmail = values[COL.SUBMITTED_BY - 1];
+  const teacherName    = values[COL.TEACHER_NAME - 1];
+  const gradeLevel     = values[COL.GRADE_LEVEL  - 1];
+  const purpose        = values[COL.PURPOSE       - 1];
+  const space          = values[COL.SPACE         - 1];
+  const date           = values[COL.DATE          - 1];
+  const startTime      = values[COL.START_TIME    - 1];
+  const endTime        = values[COL.END_TIME      - 1];
+  const status         = values[COL.STATUS        - 1];
 
   if (status === 'Approved') {
+    sheet.getRange(row, COL.APPROVE).setValue(false);
     SpreadsheetApp.getUi().alert('This reservation is already approved.');
     return;
   }
 
-  if (status === 'Denied') {
-    SpreadsheetApp.getUi().alert('This reservation was denied. Change the status to Pending first if you want to re-approve.');
-    return;
-  }
-
-  // Final conflict check before approving
-  const conflict = checkConflict(space, String(date), String(startTime), String(endTime));
+  // Final conflict check
+  const conflict = checkConflict(String(space), String(date), String(startTime), String(endTime));
   if (conflict) {
-    SpreadsheetApp.getUi().alert(
-      '⚠️ Conflict detected!\n\n"' + conflict.title + '" is already scheduled in the ' + space + ' during this time.\n\nApproval cancelled.'
-    );
+    sheet.getRange(row, COL.APPROVE).setValue(false);
+    SpreadsheetApp.getUi().alert('⚠️ Conflict: "' + conflict.title + '" is already booked in ' + (SPACE_LABELS[space] || space) + ' at that time.\n\nApproval cancelled.');
     return;
   }
 
-  // Add to the correct Google Calendar
-  const calendarId = CALENDAR_IDS[space];
+  // Add to Google Calendar
+  const calendarId = CALENDAR_IDS[String(space)];
   if (!calendarId) {
+    sheet.getRange(row, COL.APPROVE).setValue(false);
     SpreadsheetApp.getUi().alert('Calendar ID not found for space: ' + space);
     return;
   }
 
-  const cal = CalendarApp.getCalendarById(calendarId);
-  if (!cal) {
-    SpreadsheetApp.getUi().alert('Could not access calendar for space: ' + space + '\nCheck that the Calendar ID in CALENDAR_IDS is correct.');
-    return;
-  }
-
+  const cal     = CalendarApp.getCalendarById(calendarId);
   const startDt = new Date(date + 'T' + startTime + ':00');
   const endDt   = new Date(date + 'T' + endTime   + ':00');
+  const title   = purpose + ' — ' + teacherName + ' (' + gradeLevel + ')';
+  const desc    = 'Teacher: ' + teacherName + '\nGrade: ' + gradeLevel + '\nPurpose: ' + purpose + '\nSpace: ' + (SPACE_LABELS[space] || space) + '\nSubmitted by: ' + submitterEmail;
 
-  const title = purpose + ' — ' + teacherName + ' (' + gradeLevel + ')';
-  const description =
-    'Teacher: ' + teacherName + '\n' +
-    'Grade: '   + gradeLevel  + '\n' +
-    'Purpose: ' + purpose     + '\n' +
-    'Space: '   + space       + '\n' +
-    'Submitted by: ' + submitter;
+  cal.createEvent(title, startDt, endDt, { description: desc });
 
-  cal.createEvent(title, startDt, endDt, { description });
+  // Update sheet: mark Approved, keep checkbox checked
+  sheet.getRange(row, COL.STATUS).setValue('Approved').setBackground('#D1FAE5').setFontColor('#065F46');
 
-  // Mark the row as Approved in the sheet
-  sheet.getRange(row, 10).setValue('Approved').setBackground('#D1FAE5').setFontColor('#065F46');
+  // Send approval email to the teacher
+  sendApprovalEmail(submitterEmail, teacherName, space, date, startTime, endTime, purpose);
 
-  SpreadsheetApp.getUi().alert('✅ Approved!\n\n"' + title + '" has been added to the ' + space + ' calendar.');
-}
-
-// ---- Deny a reservation (marks row, does not touch calendar) ----
-function denyReservation() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
-  const row = sheet.getActiveRange().getRow();
-  if (row < 2) { SpreadsheetApp.getUi().alert('Please select a data row.'); return; }
-
-  sheet.getRange(row, 10).setValue('Denied').setBackground('#FEE2E2').setFontColor('#991B1B');
-  SpreadsheetApp.getUi().alert('Reservation marked as Denied.');
+  SpreadsheetApp.getUi().alert('✅ Approved! Event added to the ' + (SPACE_LABELS[space] || space) + ' calendar and approval email sent to ' + submitterEmail + '.');
 }
 
 // ============================================================
-// ADMIN MENU — adds "SLAM Reservations" menu to the Sheet
+// EMAIL NOTIFICATIONS
 // ============================================================
-// This runs automatically when the spreadsheet is opened.
+
+function sendSubmissionEmails(data, submitterEmail) {
+  const spaceName = SPACE_LABELS[data.space] || data.space;
+  const dateStr   = formatDateLong(data.date);
+  const timeStr   = formatTime12(data.startTime) + ' – ' + formatTime12(data.endTime);
+
+  // --- Email to the teacher who submitted ---
+  const submitterBody =
+    'Hi ' + data.teacherName + ',\n\n' +
+    'Your space reservation request has been received and is now pending admin approval.\n\n' +
+    'REQUEST DETAILS\n' +
+    '────────────────────────\n' +
+    'Space:    ' + spaceName        + '\n' +
+    'Date:     ' + dateStr          + '\n' +
+    'Time:     ' + timeStr          + '\n' +
+    'Purpose:  ' + data.purpose     + '\n' +
+    'Grade:    ' + data.gradeLevel  + '\n' +
+    '────────────────────────\n\n' +
+    'You will receive another email once your request has been reviewed.\n\n' +
+    'SLAM Space Reservations\n' +
+    'For SLAM! Nevada staff use only.';
+
+  MailApp.sendEmail({
+    to:      submitterEmail,
+    subject: '📋 Reservation Request Received — ' + spaceName + ' on ' + dateStr,
+    body:    submitterBody,
+  });
+
+  // --- Email to admin ---
+  const adminBody =
+    'A new space reservation request has been submitted.\n\n' +
+    'SUBMITTED BY: ' + submitterEmail + '\n\n' +
+    'Teacher:  ' + data.teacherName  + '\n' +
+    'Grade:    ' + data.gradeLevel   + '\n' +
+    'Purpose:  ' + data.purpose      + '\n' +
+    'Space:    ' + spaceName         + '\n' +
+    'Date:     ' + dateStr           + '\n' +
+    'Time:     ' + timeStr           + '\n\n' +
+    'Open the Google Sheet and check the "Approve ☐" checkbox in column K to approve this request.\n' +
+    'Approving will automatically add the event to the calendar and email the teacher.';
+
+  MailApp.sendEmail({
+    to:      ADMIN_EMAIL,
+    subject: '🔔 New Reservation Request — ' + data.teacherName + ' | ' + spaceName + ' | ' + dateStr,
+    body:    adminBody,
+  });
+}
+
+function sendApprovalEmail(submitterEmail, teacherName, space, date, startTime, endTime, purpose) {
+  const spaceName = SPACE_LABELS[space] || space;
+  const dateStr   = formatDateLong(String(date));
+  const timeStr   = formatTime12(String(startTime)) + ' – ' + formatTime12(String(endTime));
+
+  const body =
+    'Hi ' + teacherName + ',\n\n' +
+    'Great news — your space reservation has been approved! It has been added to the ' + spaceName + ' calendar.\n\n' +
+    'APPROVED RESERVATION\n' +
+    '────────────────────────\n' +
+    'Space:    ' + spaceName + '\n' +
+    'Date:     ' + dateStr   + '\n' +
+    'Time:     ' + timeStr   + '\n' +
+    'Purpose:  ' + purpose   + '\n' +
+    '────────────────────────\n\n' +
+    'If you need to make any changes or cancel this reservation, please contact your administrator.\n\n' +
+    'SLAM Space Reservations\n' +
+    'For SLAM! Nevada staff use only.';
+
+  MailApp.sendEmail({
+    to:      submitterEmail,
+    subject: '✅ Reservation Approved — ' + spaceName + ' on ' + dateStr,
+    body:    body,
+  });
+}
+
+// ============================================================
+// ADMIN MENU (fallback — appears in Google Sheet)
+// ============================================================
 
 function onOpen() {
   SpreadsheetApp.getUi()
     .createMenu('SLAM Reservations')
-    .addItem('✅ Approve Selected Row', 'approveReservation')
-    .addItem('❌ Deny Selected Row',    'denyReservation')
+    .addItem('✅ Approve Selected Row', 'approveSelected')
+    .addItem('❌ Deny Selected Row',    'denySelected')
     .addToUi();
+}
+
+function approveSelected() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  if (!sheet) { SpreadsheetApp.getUi().alert('No Reservations sheet found.'); return; }
+  const row = sheet.getActiveRange().getRow();
+  if (row < 2) { SpreadsheetApp.getUi().alert('Please click on a data row first.'); return; }
+  approveRow(row, sheet);
+}
+
+function denySelected() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+  const row   = sheet.getActiveRange().getRow();
+  if (row < 2) { SpreadsheetApp.getUi().alert('Please select a data row.'); return; }
+  sheet.getRange(row, COL.STATUS).setValue('Denied').setBackground('#FEE2E2').setFontColor('#991B1B');
+  SpreadsheetApp.getUi().alert('Reservation marked as Denied.');
 }
 
 // ============================================================
 // HELPERS
 // ============================================================
 
+function formatDateLong(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  } catch (e) { return String(dateStr); }
+}
+
+function formatTime12(timeStr) {
+  if (!timeStr) return '';
+  try {
+    const parts = String(timeStr).split(':');
+    const h = parseInt(parts[0]);
+    const m = parts[1] || '00';
+    const ampm  = h >= 12 ? 'PM' : 'AM';
+    const hour12 = h % 12 || 12;
+    return hour12 + ':' + m + ' ' + ampm;
+  } catch (e) { return String(timeStr); }
+}
+
 function jsonResponse(data) {
-  return ContentService
-    .createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }

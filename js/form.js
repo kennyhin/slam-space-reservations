@@ -15,17 +15,11 @@ const ReservationForm = {
     endTime: '',
   },
 
-  // ----------------------------------------------------------
-  // Build and initialize the form after auth succeeds
-  // ----------------------------------------------------------
   init() {
     this._buildSteps();
     this._showStep(1);
   },
 
-  // ----------------------------------------------------------
-  // Inject step HTML into the page
-  // ----------------------------------------------------------
   _buildSteps() {
     const container = document.getElementById('form-container');
     if (!container) return;
@@ -43,7 +37,6 @@ const ReservationForm = {
     `).join('');
 
     container.innerHTML = `
-      <!-- Progress bar -->
       <div class="form-progress">
         ${[1,2,3,4,5].map((n) => `
           <div class="progress-step" id="progress-${n}">
@@ -65,9 +58,7 @@ const ReservationForm = {
         </div>
         <div class="field-group">
           <label class="field-label">Grade Level</label>
-          <div class="bubble-group" id="grade-bubbles">
-            ${gradeOptions}
-          </div>
+          <div class="bubble-group" id="grade-bubbles">${gradeOptions}</div>
         </div>
       </div>
 
@@ -91,13 +82,11 @@ const ReservationForm = {
         </div>
       </div>
 
-      <!-- Step 3: Space Selection -->
+      <!-- Step 3: Space -->
       <div class="form-step" id="step-3">
         <h2 class="step-title">Which space are you reserving?</h2>
         <p class="step-subtitle">Select one space below.</p>
-        <div class="space-bubble-group" id="space-bubbles">
-          ${spaceOptions}
-        </div>
+        <div class="space-bubble-group" id="space-bubbles">${spaceOptions}</div>
       </div>
 
       <!-- Step 4: Date & Time -->
@@ -124,40 +113,26 @@ const ReservationForm = {
       <div class="form-step" id="step-5">
         <h2 class="step-title">Review your request</h2>
         <p class="step-subtitle">Make sure everything looks right before submitting.</p>
-        <div class="review-card" id="review-card">
-          <!-- filled by _buildReviewCard() -->
-        </div>
-        <p class="submit-note">Once submitted, an admin will review and approve your request. You'll see it on the calendar once approved.</p>
+        <div class="review-card" id="review-card"></div>
+        <p class="submit-note">Once submitted, an admin will review and approve your request. You'll receive an email confirmation right away.</p>
       </div>
 
-      <!-- Navigation buttons -->
+      <!-- Navigation -->
       <div class="form-nav">
         <button type="button" class="nav-btn secondary" id="btn-back" onclick="ReservationForm.back()">← Back</button>
-        <button type="button" class="nav-btn primary" id="btn-next" onclick="ReservationForm.next()">Next →</button>
-        <button type="button" class="nav-btn submit" id="btn-submit" onclick="ReservationForm.submit()">Submit Request</button>
+        <button type="button" class="nav-btn primary"   id="btn-next"   onclick="ReservationForm.next()">Next →</button>
+        <button type="button" class="nav-btn submit"    id="btn-submit" onclick="ReservationForm.submit()">Submit Request</button>
       </div>
 
-      <!-- Feedback messages -->
-      <div class="form-message error" id="form-error" style="display:none"></div>
+      <div class="form-message error"   id="form-error"    style="display:none"></div>
       <div class="form-message warning" id="form-conflict" style="display:none"></div>
-
-      <!-- Confirmation screen (replaces form on success) -->
-      <div class="confirmation-screen" id="confirmation" style="display:none">
-        <div class="confirm-icon">✓</div>
-        <h2 class="confirm-title">Request Submitted!</h2>
-        <p class="confirm-msg">Your reservation request has been submitted and is <strong>pending approval</strong>. An admin will review it and add it to the calendar once approved.</p>
-        <div class="confirm-summary" id="confirm-summary"></div>
-        <a href="index.html" class="nav-btn primary confirm-home-btn">View Calendar</a>
-        <button type="button" class="nav-btn secondary confirm-new-btn" onclick="ReservationForm.reset()">Submit Another</button>
-      </div>
     `;
 
-    // Attach bubble button listeners
     this._attachBubbleListeners();
   },
 
   // ----------------------------------------------------------
-  // Navigate to a step
+  // Navigation
   // ----------------------------------------------------------
   _showStep(n) {
     for (let i = 1; i <= this.totalSteps; i++) {
@@ -184,17 +159,14 @@ const ReservationForm = {
   },
 
   _updateNav(n) {
-    const back = document.getElementById('btn-back');
-    const next = document.getElementById('btn-next');
+    const back   = document.getElementById('btn-back');
+    const next   = document.getElementById('btn-next');
     const submit = document.getElementById('btn-submit');
-    if (back) back.style.display = n === 1 ? 'none' : 'inline-flex';
-    if (next) next.style.display = n === this.totalSteps ? 'none' : 'inline-flex';
+    if (back)   back.style.display   = n === 1 ? 'none' : 'inline-flex';
+    if (next)   next.style.display   = n === this.totalSteps ? 'none' : 'inline-flex';
     if (submit) submit.style.display = n === this.totalSteps ? 'inline-flex' : 'none';
   },
 
-  // ----------------------------------------------------------
-  // Next / Back navigation
-  // ----------------------------------------------------------
   next() {
     if (!this._validateStep(this.currentStep)) return;
     this._saveStep(this.currentStep);
@@ -208,155 +180,108 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
-  // Validate current step before advancing
+  // Validation
   // ----------------------------------------------------------
   _validateStep(n) {
-    const err = document.getElementById('form-error');
     this._clearMessages();
-
     if (n === 1) {
-      const name = document.getElementById('teacherName').value.trim();
-      if (!name) { this._showErr('Please enter your name.'); return false; }
+      if (!document.getElementById('teacherName').value.trim()) { this._showErr('Please enter your name.'); return false; }
       if (!this.data.gradeLevel) { this._showErr('Please select a grade level.'); return false; }
     }
     if (n === 2) {
-      const purpose = document.getElementById('purpose').value.trim();
-      if (!purpose) { this._showErr('Please describe the purpose of your reservation.'); return false; }
+      if (!document.getElementById('purpose').value.trim()) { this._showErr('Please describe the purpose.'); return false; }
     }
     if (n === 3) {
       if (!this.data.space) { this._showErr('Please select a space.'); return false; }
     }
     if (n === 4) {
-      const date = document.getElementById('resDate').value;
+      const date  = document.getElementById('resDate').value;
       const start = document.getElementById('startTime').value;
-      const end = document.getElementById('endTime').value;
-      if (!date) { this._showErr('Please select a date.'); return false; }
+      const end   = document.getElementById('endTime').value;
+      if (!date)  { this._showErr('Please select a date.'); return false; }
       if (!start) { this._showErr('Please select a start time.'); return false; }
-      if (!end) { this._showErr('Please select an end time.'); return false; }
+      if (!end)   { this._showErr('Please select an end time.'); return false; }
       if (start >= end) { this._showErr('End time must be after start time.'); return false; }
-      if (new Date(date) < new Date(this._todayStr())) {
-        this._showErr('Please select a date in the future.'); return false;
-      }
+      if (new Date(date) < new Date(this._todayStr())) { this._showErr('Please select a future date.'); return false; }
     }
     return true;
   },
 
-  // ----------------------------------------------------------
-  // Save current step inputs into this.data
-  // ----------------------------------------------------------
   _saveStep(n) {
-    if (n === 1) {
-      this.data.teacherName = document.getElementById('teacherName').value.trim();
-    }
-    if (n === 2) {
-      this.data.purpose = document.getElementById('purpose').value.trim();
-    }
+    if (n === 1) this.data.teacherName = document.getElementById('teacherName').value.trim();
+    if (n === 2) this.data.purpose     = document.getElementById('purpose').value.trim();
     if (n === 4) {
-      this.data.date = document.getElementById('resDate').value;
+      this.data.date      = document.getElementById('resDate').value;
       this.data.startTime = document.getElementById('startTime').value;
-      this.data.endTime = document.getElementById('endTime').value;
+      this.data.endTime   = document.getElementById('endTime').value;
     }
   },
 
-  // ----------------------------------------------------------
-  // Re-apply saved selections when going back to a step
-  // ----------------------------------------------------------
   _restoreSelections(n) {
     if (n === 1 && this.data.gradeLevel) {
-      document.querySelectorAll('[data-field="gradeLevel"]').forEach((btn) => {
-        btn.classList.toggle('selected', btn.dataset.value === this.data.gradeLevel);
-      });
+      document.querySelectorAll('[data-field="gradeLevel"]').forEach((b) =>
+        b.classList.toggle('selected', b.dataset.value === this.data.gradeLevel));
     }
     if (n === 3 && this.data.space) {
-      document.querySelectorAll('[data-field="space"]').forEach((btn) => {
-        btn.classList.toggle('selected', btn.dataset.value === this.data.space);
-      });
+      document.querySelectorAll('[data-field="space"]').forEach((b) =>
+        b.classList.toggle('selected', b.dataset.value === this.data.space));
     }
   },
 
-  // ----------------------------------------------------------
-  // Build the review card on step 5
-  // ----------------------------------------------------------
   _buildReviewCard() {
     this._saveStep(4);
     const space = CONFIG.SPACES.find((s) => s.id === this.data.space);
-    const card = document.getElementById('review-card');
+    const card  = document.getElementById('review-card');
     if (!card) return;
-
     card.innerHTML = `
-      <div class="review-row">
-        <span class="review-label">Teacher</span>
-        <span class="review-value">${this._escape(this.data.teacherName)}</span>
+      <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
+      <div class="review-row"><span class="review-label">Grade Level</span><span class="review-value">${this._escape(this.data.gradeLevel)}</span></div>
+      <div class="review-row"><span class="review-label">Purpose</span><span class="review-value">${this._escape(this.data.purpose)}</span></div>
+      <div class="review-row"><span class="review-label">Space</span>
+        <span class="review-value"><span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>${space ? space.label : this.data.space}</span>
       </div>
-      <div class="review-row">
-        <span class="review-label">Grade Level</span>
-        <span class="review-value">${this._escape(this.data.gradeLevel)}</span>
-      </div>
-      <div class="review-row">
-        <span class="review-label">Purpose</span>
-        <span class="review-value">${this._escape(this.data.purpose)}</span>
-      </div>
-      <div class="review-row">
-        <span class="review-label">Space</span>
-        <span class="review-value">
-          <span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>
-          ${space ? space.label : this.data.space}
-        </span>
-      </div>
-      <div class="review-row">
-        <span class="review-label">Date</span>
-        <span class="review-value">${this._formatDateStr(this.data.date)}</span>
-      </div>
-      <div class="review-row">
-        <span class="review-label">Time</span>
-        <span class="review-value">${this._formatTimeStr(this.data.startTime)} – ${this._formatTimeStr(this.data.endTime)}</span>
-      </div>
+      <div class="review-row"><span class="review-label">Date</span><span class="review-value">${this._formatDateStr(this.data.date)}</span></div>
+      <div class="review-row"><span class="review-label">Time</span><span class="review-value">${this._formatTimeStr(this.data.startTime)} – ${this._formatTimeStr(this.data.endTime)}</span></div>
     `;
   },
 
   // ----------------------------------------------------------
-  // Submit the form to Apps Script
+  // Submit
   // ----------------------------------------------------------
   submit() {
     this._saveStep(4);
     this._clearMessages();
 
-    const submitBtn = document.getElementById('btn-submit');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting…';
-
-    const payload = {
-      action: 'submit',
-      token: Auth.getToken(),
-      teacherName: this.data.teacherName,
-      gradeLevel: this.data.gradeLevel,
-      purpose: this.data.purpose,
-      space: this.data.space,
-      date: this.data.date,
-      startTime: this.data.startTime,
-      endTime: this.data.endTime,
-    };
+    const btn = document.getElementById('btn-submit');
+    btn.disabled = true;
+    btn.textContent = 'Submitting…';
 
     fetch(CONFIG.SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        action: 'submit',
+        token: Auth.getToken(),
+        teacherName: this.data.teacherName,
+        gradeLevel:  this.data.gradeLevel,
+        purpose:     this.data.purpose,
+        space:       this.data.space,
+        date:        this.data.date,
+        startTime:   this.data.startTime,
+        endTime:     this.data.endTime,
+      }),
     })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
+      .then((res) => res.json())
       .then((data) => {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit Request';
+        btn.disabled = false;
+        btn.textContent = 'Submit Request';
 
         if (data.conflict) {
           const el = document.getElementById('form-conflict');
-          el.innerHTML = `<strong>Scheduling Conflict:</strong> ${this._escape(data.message)} Please go back and choose a different time or space.`;
+          el.innerHTML = `<strong>Scheduling Conflict:</strong> ${this._escape(data.message)}`;
           el.style.display = 'block';
           return;
         }
-
         if (!data.success) {
           this._showErr(data.message || 'Something went wrong. Please try again.');
           return;
@@ -366,45 +291,72 @@ const ReservationForm = {
       })
       .catch((err) => {
         console.error('Submit error:', err);
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Submit Request';
+        btn.disabled = false;
+        btn.textContent = 'Submit Request';
         this._showErr('Could not connect to the server. Please check your connection and try again.');
       });
   },
 
   // ----------------------------------------------------------
-  // Show confirmation screen
+  // Confirmation — replaces the form-card content directly
   // ----------------------------------------------------------
   _showConfirmation() {
-    document.getElementById('form-container').style.display = 'none';
-    const conf = document.getElementById('confirmation');
-    conf.style.display = 'block';
+    const formCard = document.querySelector('.form-card');
+    if (!formCard) return;
 
     const space = CONFIG.SPACES.find((s) => s.id === this.data.space);
-    document.getElementById('confirm-summary').innerHTML = `
-      <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
-      <div class="review-row"><span class="review-label">Space</span><span class="review-value">${space ? space.label : this.data.space}</span></div>
-      <div class="review-row"><span class="review-label">Date</span><span class="review-value">${this._formatDateStr(this.data.date)}</span></div>
-      <div class="review-row"><span class="review-label">Time</span><span class="review-value">${this._formatTimeStr(this.data.startTime)} – ${this._formatTimeStr(this.data.endTime)}</span></div>
+
+    formCard.innerHTML = `
+      <div class="confirmation-screen">
+        <div class="confirm-icon">✓</div>
+        <h2 class="confirm-title">Request Submitted!</h2>
+        <p class="confirm-msg">
+          Your reservation request has been received and is <strong>pending approval</strong>.
+          Check your email — a confirmation has been sent to you. You'll receive another email once an admin approves it.
+        </p>
+        <div class="confirm-summary review-card">
+          <div class="review-row">
+            <span class="review-label">Teacher</span>
+            <span class="review-value">${this._escape(this.data.teacherName)}</span>
+          </div>
+          <div class="review-row">
+            <span class="review-label">Space</span>
+            <span class="review-value">
+              <span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>
+              ${space ? space.label : this.data.space}
+            </span>
+          </div>
+          <div class="review-row">
+            <span class="review-label">Date</span>
+            <span class="review-value">${this._formatDateStr(this.data.date)}</span>
+          </div>
+          <div class="review-row">
+            <span class="review-label">Time</span>
+            <span class="review-value">${this._formatTimeStr(this.data.startTime)} – ${this._formatTimeStr(this.data.endTime)}</span>
+          </div>
+        </div>
+        <div class="confirm-actions">
+          <a href="index.html" class="nav-btn primary">View Calendar</a>
+          <button type="button" class="nav-btn secondary" onclick="ReservationForm.reset()">Submit Another</button>
+        </div>
+      </div>
     `;
   },
 
   // ----------------------------------------------------------
-  // Reset the form for a new submission
+  // Reset for a new submission
   // ----------------------------------------------------------
   reset() {
     this.data = { teacherName: '', gradeLevel: '', purpose: '', space: '', date: '', startTime: '', endTime: '' };
     this.currentStep = 1;
-    document.getElementById('confirmation').style.display = 'none';
-    const fc = document.getElementById('form-container');
-    fc.style.display = 'block';
-    fc.innerHTML = '';
+    const formCard = document.querySelector('.form-card');
+    if (formCard) formCard.innerHTML = '<div id="form-container"></div>';
     this._buildSteps();
     this._showStep(1);
   },
 
   // ----------------------------------------------------------
-  // Bubble button click handling
+  // Bubble buttons
   // ----------------------------------------------------------
   _attachBubbleListeners() {
     document.querySelectorAll('.bubble-btn, .space-bubble-btn').forEach((btn) => {
@@ -427,40 +379,28 @@ const ReservationForm = {
   // ----------------------------------------------------------
   // Helpers
   // ----------------------------------------------------------
-  _stepLabel(n) {
-    return ['Info', 'Purpose', 'Space', 'Date & Time', 'Review'][n - 1];
-  },
-
+  _stepLabel(n) { return ['Info','Purpose','Space','Date & Time','Review'][n - 1]; },
   _clearMessages() {
-    ['form-error', 'form-conflict'].forEach((id) => {
+    ['form-error','form-conflict'].forEach((id) => {
       const el = document.getElementById(id);
       if (el) { el.style.display = 'none'; el.innerHTML = ''; }
     });
   },
-
   _showErr(msg) {
     const el = document.getElementById('form-error');
     if (el) { el.textContent = msg; el.style.display = 'block'; }
   },
-
-  _todayStr() {
-    return new Date().toISOString().split('T')[0];
-  },
-
+  _todayStr() { return new Date().toISOString().split('T')[0]; },
   _formatDateStr(str) {
     if (!str) return '';
-    const d = new Date(str + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   },
-
   _formatTimeStr(str) {
     if (!str) return '';
     const [h, m] = str.split(':');
-    const date = new Date();
-    date.setHours(+h, +m);
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    const d = new Date(); d.setHours(+h, +m);
+    return d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   },
-
   _escape(str) {
     if (!str) return '';
     return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
