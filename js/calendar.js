@@ -12,7 +12,7 @@ const CalendarView = {
     if (!el) return;
 
     this.calendar = new FullCalendar.Calendar(el, {
-      initialView: this._isMobile() ? 'listWeek' : 'timeGridWeek',
+      initialView: this._isMobile() ? 'listWeek' : 'dayGridMonth',
       headerToolbar: {
         left: 'prev,next today',
         center: 'title',

@@ -243,7 +243,12 @@ h1, h2, h3 {
    SPACE LEGEND
    ============================================================ */
 .space-legend { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
-.legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--gray-dark); }
+.legend-item {
+  display: flex; align-items: center; gap: 8px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--gray-dark);
+}
 .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
 
 /* ============================================================
@@ -259,9 +264,10 @@ h1, h2, h3 {
 }
 .calendar-card-header {
   background: #0b0c10;
-  padding: 16px 24px;
+  padding: 14px 20px;
   display: flex; align-items: center; justify-content: space-between;
   border-bottom: 1px solid rgba(255,255,255,0.06);
+  gap: 16px;
 }
 .calendar-card-title {
   font-family: 'Barlow Condensed', sans-serif;
@@ -418,9 +424,10 @@ h1, h2, h3 {
 .upcoming-title { font-weight: 600; font-size: 15px; color: #111827; margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .upcoming-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .upcoming-space-tag {
-  display: inline-block; padding: 2px 10px; border-radius: 20px;
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.06em; border: 1px solid;
+  display: inline-block; padding: 3px 12px; border-radius: 20px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.1em; border: 1px solid;
 }
 .upcoming-date, .upcoming-time { font-size: 12px; color: var(--gray-medium); }
 
@@ -586,21 +593,67 @@ h1, h2, h3 {
    ============================================================ */
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
 
-.reserve-cta {
-  background: var(--slam-black); border-radius: var(--radius);
-  padding: 28px; margin-top: 28px;
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 20px; flex-wrap: wrap;
+/* Fancy Reserve button — lives in calendar card header */
+.reserve-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 20px;
+  background: linear-gradient(135deg, #16A34A 0%, #0d7a36 50%, #8CC63F 100%);
+  background-size: 200% 200%;
+  color: white;
+  border-radius: 50px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow:
+    0 0 0 1px rgba(140,198,63,0.5),
+    0 0 18px rgba(22,163,74,0.45),
+    0 0 36px rgba(140,198,63,0.15),
+    inset 0 1px 0 rgba(255,255,255,0.18);
+  transition: all 0.35s ease;
+  animation: btn-pulse 3s ease-in-out infinite, btn-gradient 4s ease infinite;
+  overflow: hidden;
 }
-.cta-text h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; color: white; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
-.cta-text p  { font-size: 13px; color: #666; }
-.cta-btn {
-  background: var(--primary); color: white;
-  padding: 13px 28px; border-radius: 50px;
-  font-weight: 700; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em;
-  white-space: nowrap; transition: all var(--transition); display: inline-block;
+.reserve-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.22), transparent);
+  animation: btn-shimmer 2.8s ease-in-out infinite;
+  pointer-events: none;
 }
-.cta-btn:hover { background: var(--primary-hover); box-shadow: 0 4px 16px rgba(22,163,74,0.4); transform: translateY(-1px); }
+.reserve-btn:hover {
+  box-shadow:
+    0 0 0 1px rgba(140,198,63,0.8),
+    0 0 28px rgba(22,163,74,0.7),
+    0 0 56px rgba(140,198,63,0.3),
+    inset 0 1px 0 rgba(255,255,255,0.25);
+  transform: translateY(-2px) scale(1.02);
+  color: white;
+}
+
+@keyframes btn-shimmer {
+  0%   { left: -100%; }
+  50%  { left: 150%; }
+  100% { left: 150%; }
+}
+@keyframes btn-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px rgba(140,198,63,0.5), 0 0 18px rgba(22,163,74,0.45), 0 0 36px rgba(140,198,63,0.15), inset 0 1px 0 rgba(255,255,255,0.18); }
+  50%       { box-shadow: 0 0 0 1px rgba(140,198,63,0.7), 0 0 26px rgba(22,163,74,0.65), 0 0 52px rgba(140,198,63,0.25), inset 0 1px 0 rgba(255,255,255,0.18); }
+}
+@keyframes btn-gradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
 
 /* ============================================================
    FOOTER
