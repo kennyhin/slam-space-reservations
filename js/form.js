@@ -78,12 +78,10 @@ const ReservationForm = {
         </div>
         <div class="suggestion-chips">
           <span class="chip-label">Quick picks:</span>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Grade level assembly')">Grade level assembly</button>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Testing')">Testing</button>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Practice')">Practice</button>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Class activity')">Class activity</button>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('PE class')">PE class</button>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('School event')">School event</button>
+          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Popsicle Party')">🍭 Popsicle Party</button>
+          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Water Day')">💧 Water Day</button>
+          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Fingerpainting')">🎨 Fingerpainting</button>
+          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Tie Dye Party')">🌈 Tie Dye Party</button>
         </div>
       </div>
 

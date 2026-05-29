@@ -53,7 +53,7 @@ const CONFIG = {
   // ----------------------------------------------------------
   // 5. Grade levels shown in the form
   // ----------------------------------------------------------
-  GRADE_LEVELS: ['Kindergarten', '1st Grade', '2nd Grade', '3rd Grade', '4th Grade', '5th Grade', 'Staff / Admin'],
+  GRADE_LEVELS: ['Kinder', '1st', '2nd', '3rd', '4th', '5th', 'Staff'],
 
   // ----------------------------------------------------------
   // 6. How many days ahead to show on the calendar
