@@ -74,7 +74,7 @@ const ReservationForm = {
         <div class="field-group">
           <label class="field-label">Reservation Purpose</label>
           <textarea id="purpose" class="text-input textarea" rows="4"
-            placeholder="e.g. Grade level assembly, testing, practice, class activity...">${this._escape(this.data.purpose)}</textarea>
+            placeholder="e.g. Assembly, testing, practice, PE class...">${this._escape(this.data.purpose)}</textarea>
         </div>
         <div class="suggestion-chips">
           <span class="chip-label">Quick picks:</span>
@@ -105,11 +105,11 @@ const ReservationForm = {
         <div class="time-row">
           <div class="field-group">
             <label class="field-label">Start Time</label>
-            <input type="time" id="startTime" class="text-input" value="${this.data.startTime}" />
+            ${this._buildTimePicker('startTime', this.data.startTime || '08:00')}
           </div>
           <div class="field-group">
             <label class="field-label">End Time</label>
-            <input type="time" id="endTime" class="text-input" value="${this.data.endTime}" />
+            ${this._buildTimePicker('endTime', this.data.endTime || '09:00')}
           </div>
         </div>
       </div>
@@ -137,6 +137,69 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
+  // Custom Time Picker
+  // ----------------------------------------------------------
+  _buildTimePicker(fieldId, initialValue) {
+    let h24 = 8, min = 0;
+    if (initialValue) {
+      const parts = initialValue.split(':');
+      h24 = parseInt(parts[0]) || 8;
+      min = parseInt(parts[1]) || 0;
+    }
+    const isPM   = h24 >= 12;
+    const h12    = h24 % 12 || 12;
+    // Round minute down to nearest 5
+    const minR   = Math.round(min / 5) * 5 % 60;
+
+    const hours   = [1,2,3,4,5,6,7,8,9,10,11,12];
+    const minutes = [0,5,10,15,20,25,30,35,40,45,50,55];
+
+    const hOpts = hours.map(h =>
+      `<option value="${h}" ${h === h12 ? 'selected' : ''}>${String(h).padStart(2,'0')}</option>`
+    ).join('');
+    const mOpts = minutes.map(m =>
+      `<option value="${m}" ${m === minR ? 'selected' : ''}>${String(m).padStart(2,'0')}</option>`
+    ).join('');
+
+    return `
+      <div class="tp" id="tp-${fieldId}">
+        <select class="tp-sel" id="tp-h-${fieldId}" onchange="ReservationForm._onTimeChange('${fieldId}')">${hOpts}</select>
+        <span class="tp-colon">:</span>
+        <select class="tp-sel" id="tp-m-${fieldId}" onchange="ReservationForm._onTimeChange('${fieldId}')">${mOpts}</select>
+        <div class="tp-ampm">
+          <button type="button" class="tp-ampm-btn${!isPM ? ' active' : ''}"
+            onclick="ReservationForm._setAMPM('${fieldId}','AM')">AM</button>
+          <button type="button" class="tp-ampm-btn${isPM ? ' active' : ''}"
+            onclick="ReservationForm._setAMPM('${fieldId}','PM')">PM</button>
+        </div>
+      </div>`;
+  },
+
+  _setAMPM(fieldId, val) {
+    document.querySelectorAll(`#tp-${fieldId} .tp-ampm-btn`).forEach(btn => {
+      btn.classList.toggle('active', btn.textContent === val);
+    });
+    this._onTimeChange(fieldId);
+  },
+
+  _getTimeValue(fieldId) {
+    const hEl  = document.getElementById(`tp-h-${fieldId}`);
+    const mEl  = document.getElementById(`tp-m-${fieldId}`);
+    const amEl = document.querySelector(`#tp-${fieldId} .tp-ampm-btn.active`);
+    if (!hEl || !mEl || !amEl) return '';
+    let h = parseInt(hEl.value) % 12;
+    if (amEl.textContent === 'PM') h += 12;
+    return `${String(h).padStart(2,'0')}:${String(parseInt(mEl.value)).padStart(2,'0')}`;
+  },
+
+  _onTimeChange(fieldId) {
+    const val = this._getTimeValue(fieldId);
+    if (fieldId === 'startTime') this.data.startTime = val;
+    if (fieldId === 'endTime')   this.data.endTime   = val;
+    this._updatePreview();
+  },
+
+  // ----------------------------------------------------------
   // Navigation
   // ----------------------------------------------------------
   _showStep(n) {
@@ -151,7 +214,7 @@ const ReservationForm = {
     this._clearMessages();
     this.currentStep = n;
 
-    // Step 5 (Review) — expand form to full width, hide preview card
+    // Step 5 — narrow centered layout, hide preview card
     const layout = document.getElementById('reserve-layout');
     if (layout) layout.classList.toggle('step-review', n === this.totalSteps);
   },
@@ -207,11 +270,9 @@ const ReservationForm = {
     }
     if (n === 4) {
       const date  = document.getElementById('resDate').value;
-      const start = document.getElementById('startTime').value;
-      const end   = document.getElementById('endTime').value;
+      const start = this._getTimeValue('startTime');
+      const end   = this._getTimeValue('endTime');
       if (!date)  { this._showErr('Please select a date.'); return false; }
-      if (!start) { this._showErr('Please select a start time.'); return false; }
-      if (!end)   { this._showErr('Please select an end time.'); return false; }
       if (start >= end) { this._showErr('End time must be after start time.'); return false; }
       if (new Date(date) < new Date(this._todayStr())) { this._showErr('Please select a future date.'); return false; }
     }
@@ -223,8 +284,8 @@ const ReservationForm = {
     if (n === 2) this.data.purpose     = document.getElementById('purpose').value.trim();
     if (n === 4) {
       this.data.date      = document.getElementById('resDate').value;
-      this.data.startTime = document.getElementById('startTime').value;
-      this.data.endTime   = document.getElementById('endTime').value;
+      this.data.startTime = this._getTimeValue('startTime');
+      this.data.endTime   = this._getTimeValue('endTime');
     }
   },
 
@@ -297,7 +358,6 @@ const ReservationForm = {
           this._showErr(data.message || 'Something went wrong. Please try again.');
           return;
         }
-
         this._showConfirmation();
       })
       .catch((err) => {
@@ -309,42 +369,27 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
-  // Confirmation — replaces the form-card content directly
+  // Confirmation
   // ----------------------------------------------------------
   _showConfirmation() {
     const formCard = document.querySelector('.form-card');
     if (!formCard) return;
-
     const space = CONFIG.SPACES.find((s) => s.id === this.data.space);
-
     formCard.innerHTML = `
       <div class="confirmation-screen">
         <div class="confirm-icon">✓</div>
         <h2 class="confirm-title">Request Submitted!</h2>
         <p class="confirm-msg">
-          Your reservation request has been received and is <strong>pending approval</strong>.
-          Check your email — a confirmation has been sent to you. You'll receive another email once an admin approves it.
+          Your reservation request is <strong>pending approval</strong>.
+          A confirmation email has been sent to you — you'll get another once it's approved.
         </p>
         <div class="confirm-summary review-card">
-          <div class="review-row">
-            <span class="review-label">Teacher</span>
-            <span class="review-value">${this._escape(this.data.teacherName)}</span>
+          <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
+          <div class="review-row"><span class="review-label">Space</span>
+            <span class="review-value"><span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>${space ? space.label : this.data.space}</span>
           </div>
-          <div class="review-row">
-            <span class="review-label">Space</span>
-            <span class="review-value">
-              <span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>
-              ${space ? space.label : this.data.space}
-            </span>
-          </div>
-          <div class="review-row">
-            <span class="review-label">Date</span>
-            <span class="review-value">${this._formatDateStr(this.data.date)}</span>
-          </div>
-          <div class="review-row">
-            <span class="review-label">Time</span>
-            <span class="review-value">${this._formatTimeStr(this.data.startTime)} – ${this._formatTimeStr(this.data.endTime)}</span>
-          </div>
+          <div class="review-row"><span class="review-label">Date</span><span class="review-value">${this._formatDateStr(this.data.date)}</span></div>
+          <div class="review-row"><span class="review-label">Time</span><span class="review-value">${this._formatTimeStr(this.data.startTime)} – ${this._formatTimeStr(this.data.endTime)}</span></div>
         </div>
         <div class="confirm-actions">
           <a href="index.html" class="nav-btn primary">View Calendar</a>
@@ -355,7 +400,7 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
-  // Reset for a new submission
+  // Reset
   // ----------------------------------------------------------
   reset() {
     this.data = { teacherName: '', gradeLevel: '', purpose: '', space: '', date: '', startTime: '', endTime: '' };
@@ -367,7 +412,7 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
-  // Bubble buttons
+  // Bubble & input listeners
   // ----------------------------------------------------------
   _attachBubbleListeners() {
     document.querySelectorAll('.bubble-btn, .space-bubble-btn').forEach((btn) => {
@@ -380,32 +425,13 @@ const ReservationForm = {
         this._updatePreview();
       });
     });
-    // Also update preview on text input changes
     const nameEl = document.getElementById('teacherName');
-    if (nameEl) nameEl.addEventListener('input', () => {
-      this.data.teacherName = nameEl.value.trim();
-      this._updatePreview();
-    });
+    if (nameEl) nameEl.addEventListener('input', () => { this.data.teacherName = nameEl.value.trim(); this._updatePreview(); });
     const purposeEl = document.getElementById('purpose');
-    if (purposeEl) purposeEl.addEventListener('input', () => {
-      this.data.purpose = purposeEl.value.trim();
-      this._updatePreview();
-    });
+    if (purposeEl) purposeEl.addEventListener('input', () => { this.data.purpose = purposeEl.value.trim(); this._updatePreview(); });
     const dateEl = document.getElementById('resDate');
-    if (dateEl) dateEl.addEventListener('change', () => {
-      this.data.date = dateEl.value;
-      this._updatePreview();
-    });
-    const startEl = document.getElementById('startTime');
-    if (startEl) startEl.addEventListener('change', () => {
-      this.data.startTime = startEl.value;
-      this._updatePreview();
-    });
-    const endEl = document.getElementById('endTime');
-    if (endEl) endEl.addEventListener('change', () => {
-      this.data.endTime = endEl.value;
-      this._updatePreview();
-    });
+    if (dateEl) dateEl.addEventListener('change', () => { this.data.date = dateEl.value; this._updatePreview(); });
+    // Time pickers update via _onTimeChange — no extra listeners needed here
   },
 
   _fillPurpose(text) {
@@ -419,21 +445,15 @@ const ReservationForm = {
   // Live Preview
   // ----------------------------------------------------------
   _updatePreview() {
-    const set = (id, val, fallback) => {
+    const set = (id, val) => {
       const el = document.getElementById(id);
       if (!el) return;
-      if (val) {
-        el.textContent = val;
-        el.classList.remove('preview-field-empty');
-      } else {
-        el.textContent = fallback || '—';
-        el.classList.add('preview-field-empty');
-      }
+      if (val) { el.textContent = val; el.classList.remove('preview-field-empty'); }
+      else     { el.textContent = '—'; el.classList.add('preview-field-empty'); }
     };
 
     const d = this.data;
 
-    // Title = purpose (or placeholder)
     const titleEl = document.getElementById('preview-title');
     if (titleEl) {
       titleEl.textContent = d.purpose || 'Your Reservation';
@@ -443,32 +463,22 @@ const ReservationForm = {
     set('preview-teacher', d.teacherName || (document.getElementById('teacherName') || {}).value);
     set('preview-grade',   d.gradeLevel);
     set('preview-date',    d.date ? this._formatDateStr(d.date) : '');
-    set('preview-time',    d.startTime && d.endTime
-      ? `${this._formatTimeStr(d.startTime)} – ${this._formatTimeStr(d.endTime)}` : '');
+    set('preview-time',    d.startTime && d.endTime ? `${this._formatTimeStr(d.startTime)} – ${this._formatTimeStr(d.endTime)}` : '');
 
-    // Space chip with color
     const spaceEl = document.getElementById('preview-space');
     if (spaceEl) {
-      const spaceConfig = typeof CONFIG !== 'undefined'
-        ? (CONFIG.SPACES || []).find(s => s.id === d.space) : null;
-      if (spaceConfig) {
-        spaceEl.innerHTML = `
-          <span class="preview-space-chip" style="background:${spaceConfig.color}18;color:${spaceConfig.color};border-color:${spaceConfig.color}44">
-            <span class="preview-space-dot-sm" style="background:${spaceConfig.color}"></span>
-            ${spaceConfig.label}
-          </span>`;
+      const sc = typeof CONFIG !== 'undefined' ? (CONFIG.SPACES || []).find(s => s.id === d.space) : null;
+      if (sc) {
+        spaceEl.innerHTML = `<span class="preview-space-chip" style="background:${sc.color}18;color:${sc.color};border-color:${sc.color}44"><span class="preview-space-dot-sm" style="background:${sc.color}"></span>${sc.label}</span>`;
         spaceEl.classList.remove('preview-field-empty');
       } else {
-        spaceEl.textContent = '—';
-        spaceEl.classList.add('preview-field-empty');
+        spaceEl.textContent = '—'; spaceEl.classList.add('preview-field-empty');
       }
     }
 
-    // Color bar on preview card
     const bar = document.getElementById('preview-bar');
     if (bar) {
-      const sp = typeof CONFIG !== 'undefined'
-        ? (CONFIG.SPACES || []).find(s => s.id === d.space) : null;
+      const sp = typeof CONFIG !== 'undefined' ? (CONFIG.SPACES || []).find(s => s.id === d.space) : null;
       bar.style.background = sp ? sp.color : '#E2E2E2';
     }
   },
@@ -483,10 +493,7 @@ const ReservationForm = {
       if (el) { el.style.display = 'none'; el.innerHTML = ''; }
     });
   },
-  _showErr(msg) {
-    const el = document.getElementById('form-error');
-    if (el) { el.textContent = msg; el.style.display = 'block'; }
-  },
+  _showErr(msg) { const el = document.getElementById('form-error'); if (el) { el.textContent = msg; el.style.display = 'block'; } },
   _todayStr() { return new Date().toISOString().split('T')[0]; },
   _formatDateStr(str) {
     if (!str) return '';
