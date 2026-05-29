@@ -198,10 +198,10 @@ h1, h2, h3 {
   font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px; color: white;
 }
 .header-logo-img {
-  height: 30px !important;
-  max-height: 30px !important;
+  height: 46px !important;
+  max-height: 46px !important;
   width: auto !important;
-  max-width: 120px !important;
+  max-width: 140px !important;
   object-fit: contain;
   flex-shrink: 0;
   display: block;
