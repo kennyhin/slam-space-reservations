@@ -65,7 +65,7 @@ const ReservationForm = {
       <!-- Step 2: Purpose -->
       <div class="form-step" id="step-2">
         <h2 class="step-title">What is this reservation for?</h2>
-        <p class="step-subtitle">Describe the purpose of your reservation.</p>
+        <p class="step-subtitle">Keep it short — 5 words or less.</p>
         <div class="field-group">
           <label class="field-label">Reservation Purpose</label>
           <textarea id="purpose" class="text-input textarea" rows="4"
@@ -114,7 +114,7 @@ const ReservationForm = {
         <h2 class="step-title">Review your request</h2>
         <p class="step-subtitle">Make sure everything looks right before submitting.</p>
         <div class="review-card" id="review-card"></div>
-        <p class="submit-note">Once submitted, an admin will review and approve your request. You'll receive an email confirmation right away.</p>
+        <p class="submit-note">You'll receive an email confirmation shortly after submitting. If your request is approved, you'll get another email notifying you.</p>
       </div>
 
       <!-- Navigation -->

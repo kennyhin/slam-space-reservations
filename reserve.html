@@ -123,8 +123,6 @@
       else avatar.style.display = 'none';
       document.getElementById('user-name').textContent = user.given_name || user.name;
 
-      // Pre-fill teacher name from Google account
-      ReservationForm.data.teacherName = user.name || '';
       ReservationForm.init();
     }
 
