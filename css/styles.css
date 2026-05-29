@@ -98,6 +98,10 @@ h1, h2, h3 {
   gap: 12px;
   margin-bottom: 28px;
 }
+.auth-logo-bull {
+  height: 100px; width: auto; object-fit: contain;
+  filter: drop-shadow(0 4px 16px rgba(22,163,74,0.3));
+}
 .auth-logo-icon {
   width: 48px; height: 48px;
   background: var(--primary);
@@ -191,6 +195,9 @@ h1, h2, h3 {
   width: 36px; height: 36px; background: var(--primary);
   border-radius: 9px; display: flex; align-items: center; justify-content: center;
   font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px; color: white;
+}
+.header-logo-img {
+  height: 32px; width: auto; object-fit: contain; flex-shrink: 0;
 }
 .header-logo-text {
   font-family: 'Barlow Condensed', sans-serif;
@@ -345,7 +352,7 @@ h1, h2, h3 {
 /* Day cells */
 .fc .fc-daygrid-day { background: #0f1117 !important; }
 .fc .fc-daygrid-day:hover { background: rgba(255,255,255,0.03) !important; }
-.fc .fc-daygrid-day-frame { min-height: 90px; padding: 4px; }
+.fc .fc-daygrid-day-frame { min-height: 120px; padding: 4px; }
 
 /* Day numbers */
 .fc .fc-daygrid-day-number {
@@ -374,14 +381,41 @@ h1, h2, h3 {
 
 /* Events */
 .fc .fc-event {
-  border-radius: 8px !important; font-size: 12px !important;
-  font-weight: 600 !important; padding: 3px 8px !important;
+  border-radius: 6px !important; font-size: 10.5px !important;
+  font-weight: 600 !important; padding: 2px 6px !important;
   cursor: pointer; transition: opacity 0.15s, transform 0.1s;
   border: none !important;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  line-height: 1.4 !important;
 }
 .fc .fc-event:hover { opacity: 0.9; transform: translateY(-1px); }
-.fc .fc-daygrid-event { margin: 1px 2px !important; border-radius: 6px !important; }
+.fc .fc-daygrid-event { margin: 1px 2px !important; border-radius: 5px !important; }
+
+/* "+X more" link */
+.fc .fc-daygrid-more-link {
+  font-size: 10px !important; font-weight: 700 !important;
+  color: var(--slam-green) !important; padding: 2px 6px !important;
+  background: rgba(140,198,63,0.12) !important;
+  border-radius: 4px !important; margin: 1px 2px !important;
+  display: block; text-align: center;
+}
+.fc .fc-daygrid-more-link:hover {
+  background: rgba(140,198,63,0.25) !important;
+  color: white !important;
+}
+/* Popover (the expanded events dropdown) */
+.fc .fc-popover {
+  background: #1a1d27 !important; border: 1px solid rgba(140,198,63,0.3) !important;
+  border-radius: 12px !important; box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  overflow: hidden;
+}
+.fc .fc-popover-header {
+  background: #0b0c10 !important; color: #e5e7eb !important;
+  font-family: 'Barlow Condensed', sans-serif !important;
+  font-size: 13px !important; letter-spacing: 0.06em !important;
+  padding: 10px 14px !important;
+}
+.fc .fc-popover-body { padding: 8px !important; background: #1a1d27 !important; }
 
 /* List view */
 .fc .fc-list-day-cushion       { background: rgba(255,255,255,0.04); }
