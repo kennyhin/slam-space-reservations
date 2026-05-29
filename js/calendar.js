@@ -87,17 +87,26 @@ const CalendarView = {
     if (!el) return;
 
     this.calendar = new FullCalendar.Calendar(el, {
-      // 5-day rolling timeline, 9am–6pm
+      // 5-day rolling timeline, 9am–6pm; also supports month view
       views: {
-        timeGridFiveDays: { type: 'timeGrid', duration: { days: 5 } },
+        timeGridFiveDays: {
+          type: 'timeGrid',
+          duration: { days: 5 },
+          buttonText: '5 Days',
+        },
       },
       initialView: this._isMobile() ? 'listWeek' : 'timeGridFiveDays',
       headerToolbar: {
         left:   'prev,next today',
         center: 'title',
-        right:  'timeGridFiveDays,listWeek',
+        right:  'timeGridFiveDays,dayGridMonth,listWeek',
       },
-      buttonText: { today: 'Today', list: 'List' },
+      buttonText: {
+        today: 'Today',
+        month: 'Month',
+        list:  'List',
+        timeGridFiveDays: '5 Days',
+      },
       buttonIcons: false,
 
       height: '100%',
@@ -133,7 +142,8 @@ const CalendarView = {
         if (data.error) throw new Error(data.error);
         this.events = data.events || [];
         this._populateCalendar();
-        MiniCal.render();   // refresh mini-cal dots
+        MiniCal.render();
+        this._renderUpcomingInPanel();   // show upcoming in right panel
         this._setLoading(false);
       })
       .catch(err => {
@@ -162,6 +172,52 @@ const CalendarView = {
         },
       });
     });
+  },
+
+  // ---- Upcoming events in right panel ------------------------
+  _renderUpcomingInPanel() {
+    const panel = document.getElementById('detail-panel');
+    if (!panel) return;
+
+    const now      = new Date();
+    const twoWeeks = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+
+    const upcoming = this.events
+      .filter(ev => { const s = new Date(ev.start); return s >= now && s <= twoWeeks; })
+      .sort((a, b) => new Date(a.start) - new Date(b.start));
+
+    let html = `<div class="detail-section-title">Upcoming · Next 2 Weeks</div>`;
+
+    if (upcoming.length === 0) {
+      html += `<div style="font-size:12px;color:#AAAAAA;padding:8px 0;line-height:1.6;">
+                 Nothing scheduled in the next 2 weeks
+               </div>`;
+    } else {
+      html += upcoming.map(ev => {
+        const space      = CONFIG.SPACES.find(s => s.id === ev.space);
+        const color      = space ? space.color : '#888B8D';
+        const spaceLabel = space ? space.label : ev.space;
+        const start      = new Date(ev.start);
+        const end        = new Date(ev.end);
+        return `
+          <div class="upcoming-panel-item" onclick="CalendarView._showEventDetailFromId('${this._escape(ev.id)}')">
+            <div class="upcoming-panel-dot" style="background:${color}"></div>
+            <div class="upcoming-panel-body">
+              <div class="upcoming-panel-title">${this._escape(ev.title)}</div>
+              <div class="upcoming-panel-meta">${this._formatDateShort(start)} · ${this._formatTime(start)}–${this._formatTime(end)}</div>
+              <span class="upcoming-panel-tag" style="background:${color}18;color:${color};border-color:${color}33">${spaceLabel}</span>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    panel.innerHTML = html;
+  },
+
+  // Show detail from an event ID (used by upcoming list clicks)
+  _showEventDetailFromId(id) {
+    const calEvent = this.calendar.getEventById(id);
+    if (calEvent) this._showEventDetail(calEvent);
   },
 
   // Returns a Set of 'YYYY-MM-DD' strings that have events (for mini-cal dots)
@@ -222,19 +278,12 @@ const CalendarView = {
         <span class="detail-value">${this._escape(event.extendedProps.description)}</span>
       </div>` : ''}
 
-      <button class="detail-close-btn" onclick="CalendarView.clearDetail()">✕ Clear</button>
+      <button class="detail-close-btn" onclick="CalendarView.clearDetail()">← Back to Upcoming</button>
     `;
   },
 
   clearDetail() {
-    const panel = document.getElementById('detail-panel');
-    if (!panel) return;
-    panel.innerHTML = `
-      <div class="detail-empty" id="detail-empty">
-        <div class="detail-empty-icon">🗓</div>
-        <div class="detail-empty-title">No event selected</div>
-        <div class="detail-empty-sub">Click any reservation on the calendar to see its details here</div>
-      </div>`;
+    this._renderUpcomingInPanel();
   },
 
   // Mobile fallback modal
@@ -275,6 +324,9 @@ const CalendarView = {
   },
   _formatDate(date) {
     return date.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  },
+  _formatDateShort(date) {
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   },
   _formatTime(date) {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
