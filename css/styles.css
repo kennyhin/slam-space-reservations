@@ -152,7 +152,7 @@ h1, h2, h3 {
 .app-layout {
   display: grid;
   grid-template-columns: 240px 1fr 268px;
-  height: calc(100vh - 50px);
+  height: calc(100vh - 50px); /* full height minus header only */
   overflow: hidden;
 }
 
@@ -231,19 +231,19 @@ h1, h2, h3 {
 .sidebar-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .sidebar-legend-name { font-size: 12px; font-weight: 500; color: #333; }
 
-/* Reserve button in sidebar — glowing animated */
+/* Reserve button in sidebar — charcoal/red blend, dynamic */
 .reserve-btn-sidebar {
   display: flex; align-items: center; gap: 8px;
   padding: 11px 14px; margin-top: 16px;
-  background: linear-gradient(135deg, #0B0B0B 0%, #1a1a1a 100%);
-  color: var(--slam-green);
+  background: linear-gradient(135deg, #2D2D2D 0%, #1c1c1c 45%, #420914 100%);
+  color: #F0F0F0;
   border-radius: 10px;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 14px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
   text-decoration: none;
-  border: 1px solid rgba(168,212,0,0.30);
-  box-shadow: 0 0 14px rgba(168,212,0,0.15), inset 0 1px 0 rgba(168,212,0,0.08);
+  border: 1px solid rgba(200,16,46,0.28);
+  box-shadow: 0 0 14px rgba(200,16,46,0.14), inset 0 1px 0 rgba(255,255,255,0.05);
   transition: all 0.25s;
   position: relative; overflow: hidden;
   animation: sidebar-pulse 3s ease-in-out infinite;
@@ -252,23 +252,23 @@ h1, h2, h3 {
   content: '';
   position: absolute; top: 0; left: -120%;
   width: 55%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(168,212,0,0.18), transparent);
+  background: linear-gradient(90deg, transparent, rgba(200,16,46,0.18), transparent);
   animation: sidebar-shimmer 3.5s ease-in-out infinite;
   pointer-events: none;
 }
 .reserve-btn-sidebar:hover {
-  background: linear-gradient(135deg, #1a1a1a 0%, #252525 100%);
-  box-shadow: 0 0 26px rgba(168,212,0,0.38), inset 0 1px 0 rgba(168,212,0,0.12);
-  border-color: rgba(168,212,0,0.65);
-  color: var(--slam-green);
+  background: linear-gradient(135deg, #3a3a3a 0%, #222 40%, #5c0d1a 100%);
+  box-shadow: 0 0 26px rgba(200,16,46,0.32), inset 0 1px 0 rgba(255,255,255,0.07);
+  border-color: rgba(200,16,46,0.60);
+  color: white;
   transform: translateY(-1px);
 }
 @keyframes sidebar-pulse {
-  0%, 100% { box-shadow: 0 0 14px rgba(168,212,0,0.15), inset 0 1px 0 rgba(168,212,0,0.08); border-color: rgba(168,212,0,0.30); }
-  50%       { box-shadow: 0 0 24px rgba(168,212,0,0.32), inset 0 1px 0 rgba(168,212,0,0.10); border-color: rgba(168,212,0,0.55); }
+  0%, 100% { box-shadow: 0 0 14px rgba(200,16,46,0.14); border-color: rgba(200,16,46,0.28); }
+  50%       { box-shadow: 0 0 24px rgba(200,16,46,0.30); border-color: rgba(200,16,46,0.52); }
 }
 @keyframes sidebar-shimmer {
-  0%       { left: -120%; }
+  0%        { left: -120%; }
   45%, 100% { left: 150%; }
 }
 .reserve-btn-icon { font-size: 17px; line-height: 1; }
@@ -502,13 +502,17 @@ h1, h2, h3 {
   padding: 2px 8px; border-radius: 4px;
   pointer-events: none; white-space: nowrap;
 }
-/* Hover "+" on month view day cells */
+/* Hover on month view day cells — "Reserve" badge at bottom */
 .fc .fc-daygrid-day-frame { position: relative; cursor: pointer; }
 .fc .fc-daygrid-day-frame:hover::after {
-  content: '+';
-  position: absolute; top: 4px; right: 6px;
-  font-size: 18px; font-weight: 300; line-height: 1;
-  color: rgba(200,16,46,0.40); pointer-events: none;
+  content: '+ Reserve';
+  position: absolute; bottom: 5px; right: 5px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: rgba(200,16,46,0.50);
+  background: rgba(200,16,46,0.07);
+  padding: 2px 6px; border-radius: 4px;
+  pointer-events: none; white-space: nowrap;
 }
 
 /* ============================================================
@@ -516,14 +520,16 @@ h1, h2, h3 {
    ============================================================ */
 .reserve-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 250px;
   gap: 24px;
-  max-width: 1040px;
-  margin: 0 auto;
   align-items: start;
 }
 .reserve-layout.step-review { grid-template-columns: 1fr; }
 .reserve-layout.step-review .preview-card { display: none; }
+
+/* Form fills its column fully — no internal centering */
+.reserve-layout .form-wrapper { max-width: 100%; margin: 0; }
+.reserve-layout .form-card { width: 100%; }
 
 /* Live preview card */
 .preview-card {
@@ -749,16 +755,8 @@ h1, h2, h3 {
 .confirm-summary { max-width: 420px; margin: 0 auto; }
 .confirm-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
 
-/* ============================================================
-   FOOTER
-   ============================================================ */
-.site-footer {
-  background: var(--slam-black);
-  border-top: 3px solid var(--slam-green);
-  padding: 16px 24px; text-align: center;
-  font-size: 12px; color: #555;
-}
-.site-footer a { color: var(--slam-green); }
+/* Footer hidden */
+.site-footer { display: none !important; }
 
 /* ============================================================
    RESPONSIVE
