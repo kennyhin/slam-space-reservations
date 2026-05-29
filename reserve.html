@@ -5,27 +5,19 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reserve a Space — SLAM Space Reservations</title>
   <meta name="robots" content="noindex, nofollow" />
-
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Dancing+Script:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
-  <!-- Stylesheet -->
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 
-  <!-- ============================================================
-       AUTH OVERLAY — spinner first, sign-in only if needed
-       ============================================================ -->
+  <!-- AUTH OVERLAY -->
   <div class="auth-overlay" id="auth-overlay">
-
     <div id="auth-loading" class="auth-loading-screen">
       <div class="auth-spinner-ring"></div>
       <span class="auth-loading-label">Loading</span>
     </div>
-
     <div class="auth-box" id="auth-box-main" style="display:none">
       <div class="auth-logo">
         <img src="images/slam-bull.png" alt="SLAM!" class="auth-logo-bull" />
@@ -39,7 +31,6 @@
       <div class="auth-divider"></div>
       <p class="auth-note">Having trouble? Contact your school administrator.</p>
     </div>
-
     <div class="auth-box auth-denied" id="auth-denied-box" style="display:none">
       <div class="auth-denied-icon">🚫</div>
       <h2>Access Denied</h2>
@@ -50,23 +41,17 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       SITE HEADER
-       ============================================================ -->
+  <!-- HEADER -->
   <header class="site-header" id="site-header" style="display:none">
     <div class="header-inner">
       <a href="index.html" class="header-logo">
-        <img src="images/slam-logo.png" alt="SLAM!" class="header-logo-img" />
-        <div class="header-logo-text"><span>Reservations</span></div>
+        <div class="header-logo-text">SLAM <span>Reservations</span></div>
       </a>
-
       <button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" onclick="toggleNav()">☰</button>
-
       <nav class="header-nav" id="header-nav">
         <a href="index.html" class="nav-link">📅 Calendar</a>
         <a href="reserve.html" class="nav-link active">+ Reserve a Space</a>
       </nav>
-
       <div class="header-user" id="header-user">
         <img class="user-avatar" id="user-avatar" src="" alt="User avatar" />
         <span class="user-name" id="user-name"></span>
@@ -75,38 +60,69 @@
     </div>
   </header>
 
-  <!-- ============================================================
-       MAIN CONTENT
-       ============================================================ -->
+  <!-- MAIN CONTENT -->
   <main class="page-content" id="main-content" style="display:none">
 
     <div class="page-header">
+      <a href="index.html" class="back-link">← Back to Calendar</a>
       <h1 class="page-title">Reserve a <span>Space</span></h1>
       <p class="page-subtitle">Complete each step below to submit your reservation request.</p>
     </div>
 
-    <div class="form-wrapper">
-      <div class="form-card">
-        <!-- Form wizard built and injected by form.js -->
-        <div id="form-container"></div>
-        <!-- Confirmation screen also lives inside form-wrapper, outside form-card -->
+    <!-- 2-column: form + live preview -->
+    <div class="reserve-layout" id="reserve-layout">
+
+      <!-- Form wizard -->
+      <div class="form-wrapper">
+        <div class="form-card">
+          <div id="form-container"></div>
+        </div>
       </div>
+
+      <!-- Live preview card -->
+      <div class="preview-card" id="live-preview">
+        <div class="preview-card-header">
+          <span class="preview-card-label">Preview</span>
+          <span class="preview-card-status" id="preview-status">Draft</span>
+        </div>
+        <div class="preview-event-bar" id="preview-bar"></div>
+        <div class="preview-body">
+          <div class="preview-event-title preview-empty-title" id="preview-title">Your reservation</div>
+
+          <div class="preview-field">
+            <span class="preview-field-label">Who</span>
+            <span class="preview-field-value preview-field-empty" id="preview-teacher">—</span>
+          </div>
+          <div class="preview-field">
+            <span class="preview-field-label">Grade</span>
+            <span class="preview-field-value preview-field-empty" id="preview-grade">—</span>
+          </div>
+          <div class="preview-field">
+            <span class="preview-field-label">Space</span>
+            <span class="preview-field-value preview-field-empty" id="preview-space">—</span>
+          </div>
+          <div class="preview-field">
+            <span class="preview-field-label">Date</span>
+            <span class="preview-field-value preview-field-empty" id="preview-date">—</span>
+          </div>
+          <div class="preview-field">
+            <span class="preview-field-label">Time</span>
+            <span class="preview-field-value preview-field-empty" id="preview-time">—</span>
+          </div>
+        </div>
+      </div>
+
     </div>
 
   </main>
 
-  <!-- ============================================================
-       FOOTER
-       ============================================================ -->
+  <!-- FOOTER -->
   <footer class="site-footer" id="site-footer" style="display:none">
     <p>SLAM Space Reservations &nbsp;·&nbsp; For staff use only &nbsp;·&nbsp; <a href="https://slamnvathletics.org" target="_blank">SLAM Athletics ↗</a></p>
   </footer>
 
-  <!-- ============================================================
-       SCRIPTS
-       ============================================================ -->
+  <!-- SCRIPTS -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/form.js"></script>

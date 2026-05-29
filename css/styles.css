@@ -121,17 +121,13 @@ h1, h2, h3 {
   height: 100%; gap: 16px; overflow: hidden;
 }
 .header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.header-logo-img {
-  height: 34px !important; max-height: 34px !important;
-  width: auto !important; max-width: 100px !important;
-  object-fit: contain; flex-shrink: 0; display: block;
-  opacity: 0.85;
-}
+.header-logo-img { display: none; }
 .header-logo-text {
-  font-family: 'Dancing Script', cursive;
-  font-weight: 600; font-size: 20px; color: #AAAAAA;
-  text-transform: none; letter-spacing: 0.01em; line-height: 1;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-weight: 700; font-size: 17px; color: #BBBBBB;
+  text-transform: uppercase; letter-spacing: 0.10em; line-height: 1;
 }
+.header-logo-text span { color: var(--primary); }
 .header-nav { display: flex; align-items: center; gap: 2px; flex: 1; justify-content: center; }
 .nav-link {
   display: inline-flex; align-items: center;
@@ -360,21 +356,23 @@ h1, h2, h3 {
 /* Today column */
 .fc .fc-day-today { background: rgba(200,16,46,0.04) !important; }
 
-/* Current time line — red with dot */
+/* Current time line — red line + red dot */
 .fc .fc-timegrid-now-indicator-line {
   border-color: var(--primary) !important;
-  border-width: 2px;
+  border-width: 2px !important;
   z-index: 5;
+  overflow: visible;
 }
-.fc .fc-timegrid-now-indicator-arrow {
-  border: none !important;
+.fc .fc-timegrid-now-indicator-line::before {
+  content: '';
+  position: absolute;
+  left: 0; top: -5px;
   width: 10px; height: 10px;
   border-radius: 50%;
   background: var(--primary);
-  top: -4px;
-  margin-left: -1px;
-  box-shadow: 0 0 6px rgba(200,16,46,0.55);
+  box-shadow: 0 0 8px rgba(200,16,46,0.55);
 }
+.fc .fc-timegrid-now-indicator-arrow { display: none !important; }
 
 /* Event CARDS in timeline view */
 .fc .fc-timegrid-event {
@@ -487,6 +485,110 @@ h1, h2, h3 {
   font-size: 9px; font-weight: 700; text-transform: uppercase;
   letter-spacing: 0.08em; border: 1px solid;
 }
+
+/* Hover "+" to reserve on time slots */
+.fc .fc-timegrid-slot-lane {
+  position: relative; cursor: pointer;
+  transition: background 0.12s;
+}
+.fc .fc-timegrid-slot-lane:hover { background: rgba(200,16,46,0.04) !important; }
+.fc .fc-timegrid-slot-lane:hover::after {
+  content: '+ Reserve';
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em;
+  color: rgba(200,16,46,0.45);
+  background: rgba(200,16,46,0.06);
+  padding: 2px 8px; border-radius: 4px;
+  pointer-events: none; white-space: nowrap;
+}
+/* Hover "+" on month view day cells */
+.fc .fc-daygrid-day-frame { position: relative; cursor: pointer; }
+.fc .fc-daygrid-day-frame:hover::after {
+  content: '+';
+  position: absolute; top: 4px; right: 6px;
+  font-size: 18px; font-weight: 300; line-height: 1;
+  color: rgba(200,16,46,0.40); pointer-events: none;
+}
+
+/* ============================================================
+   RESERVE PAGE — 2-column layout with live preview
+   ============================================================ */
+.reserve-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  max-width: 1040px;
+  margin: 0 auto;
+  align-items: start;
+}
+.reserve-layout.step-review { grid-template-columns: 1fr; }
+.reserve-layout.step-review .preview-card { display: none; }
+
+/* Live preview card */
+.preview-card {
+  position: sticky; top: 80px;
+  background: var(--slam-white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--gray-border);
+  overflow: hidden;
+}
+.preview-card-header {
+  background: var(--slam-black); padding: 12px 16px;
+  display: flex; align-items: center; gap: 8px;
+}
+.preview-card-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #666;
+}
+.preview-card-status {
+  margin-left: auto;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #F59E0B;
+  background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3);
+  padding: 2px 8px; border-radius: 20px;
+}
+.preview-event-bar { height: 5px; background: var(--gray-border); transition: background 0.3s; }
+.preview-body { padding: 16px; }
+.preview-event-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px; font-weight: 700; color: #111;
+  text-transform: uppercase; margin-bottom: 12px; line-height: 1.2;
+  min-height: 28px;
+}
+.preview-empty-title { color: #CCC; }
+.preview-field {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 0; border-bottom: 1px solid #F4F4F4;
+  font-size: 12px;
+}
+.preview-field:last-child { border-bottom: none; }
+.preview-field-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: #CCCCCC; width: 50px; flex-shrink: 0;
+}
+.preview-field-value { color: #333; font-weight: 500; flex: 1; }
+.preview-field-empty { color: #DDDDDD; }
+.preview-space-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 20px;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.06em; border: 1px solid;
+}
+.preview-space-dot-sm { width: 6px; height: 6px; border-radius: 50%; }
+
+/* Back to calendar link */
+.back-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; color: #AAAAAA;
+  margin-bottom: 14px; transition: color 0.15s;
+  letter-spacing: 0.02em;
+}
+.back-link:hover { color: var(--primary); }
 
 /* ============================================================
    MODAL (mobile fallback + reserve.html uses the same modal)

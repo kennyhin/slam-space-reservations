@@ -16,8 +16,13 @@ const ReservationForm = {
   },
 
   init() {
+    // Pre-fill date from URL param (?date=YYYY-MM-DD)
+    const urlDate = new URLSearchParams(window.location.search).get('date');
+    if (urlDate) this.data.date = urlDate;
+
     this._buildSteps();
     this._showStep(1);
+    this._updatePreview();
   },
 
   _buildSteps() {
@@ -145,6 +150,10 @@ const ReservationForm = {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     this._clearMessages();
     this.currentStep = n;
+
+    // Step 5 (Review) — expand form to full width, hide preview card
+    const layout = document.getElementById('reserve-layout');
+    if (layout) layout.classList.toggle('step-review', n === this.totalSteps);
   },
 
   _updateProgress(n) {
@@ -172,11 +181,13 @@ const ReservationForm = {
     this._saveStep(this.currentStep);
     if (this.currentStep === this.totalSteps - 1) this._buildReviewCard();
     this._showStep(this.currentStep + 1);
+    this._updatePreview();
   },
 
   back() {
     this._saveStep(this.currentStep);
     this._showStep(this.currentStep - 1);
+    this._updatePreview();
   },
 
   // ----------------------------------------------------------
@@ -366,7 +377,34 @@ const ReservationForm = {
         this.data[field] = value;
         document.querySelectorAll(`[data-field="${field}"]`).forEach((b) => b.classList.remove('selected'));
         btn.classList.add('selected');
+        this._updatePreview();
       });
+    });
+    // Also update preview on text input changes
+    const nameEl = document.getElementById('teacherName');
+    if (nameEl) nameEl.addEventListener('input', () => {
+      this.data.teacherName = nameEl.value.trim();
+      this._updatePreview();
+    });
+    const purposeEl = document.getElementById('purpose');
+    if (purposeEl) purposeEl.addEventListener('input', () => {
+      this.data.purpose = purposeEl.value.trim();
+      this._updatePreview();
+    });
+    const dateEl = document.getElementById('resDate');
+    if (dateEl) dateEl.addEventListener('change', () => {
+      this.data.date = dateEl.value;
+      this._updatePreview();
+    });
+    const startEl = document.getElementById('startTime');
+    if (startEl) startEl.addEventListener('change', () => {
+      this.data.startTime = startEl.value;
+      this._updatePreview();
+    });
+    const endEl = document.getElementById('endTime');
+    if (endEl) endEl.addEventListener('change', () => {
+      this.data.endTime = endEl.value;
+      this._updatePreview();
     });
   },
 
@@ -374,6 +412,65 @@ const ReservationForm = {
     const el = document.getElementById('purpose');
     if (el) el.value = text;
     this.data.purpose = text;
+    this._updatePreview();
+  },
+
+  // ----------------------------------------------------------
+  // Live Preview
+  // ----------------------------------------------------------
+  _updatePreview() {
+    const set = (id, val, fallback) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (val) {
+        el.textContent = val;
+        el.classList.remove('preview-field-empty');
+      } else {
+        el.textContent = fallback || '—';
+        el.classList.add('preview-field-empty');
+      }
+    };
+
+    const d = this.data;
+
+    // Title = purpose (or placeholder)
+    const titleEl = document.getElementById('preview-title');
+    if (titleEl) {
+      titleEl.textContent = d.purpose || 'Your Reservation';
+      titleEl.classList.toggle('preview-empty-title', !d.purpose);
+    }
+
+    set('preview-teacher', d.teacherName || (document.getElementById('teacherName') || {}).value);
+    set('preview-grade',   d.gradeLevel);
+    set('preview-date',    d.date ? this._formatDateStr(d.date) : '');
+    set('preview-time',    d.startTime && d.endTime
+      ? `${this._formatTimeStr(d.startTime)} – ${this._formatTimeStr(d.endTime)}` : '');
+
+    // Space chip with color
+    const spaceEl = document.getElementById('preview-space');
+    if (spaceEl) {
+      const spaceConfig = typeof CONFIG !== 'undefined'
+        ? (CONFIG.SPACES || []).find(s => s.id === d.space) : null;
+      if (spaceConfig) {
+        spaceEl.innerHTML = `
+          <span class="preview-space-chip" style="background:${spaceConfig.color}18;color:${spaceConfig.color};border-color:${spaceConfig.color}44">
+            <span class="preview-space-dot-sm" style="background:${spaceConfig.color}"></span>
+            ${spaceConfig.label}
+          </span>`;
+        spaceEl.classList.remove('preview-field-empty');
+      } else {
+        spaceEl.textContent = '—';
+        spaceEl.classList.add('preview-field-empty');
+      }
+    }
+
+    // Color bar on preview card
+    const bar = document.getElementById('preview-bar');
+    if (bar) {
+      const sp = typeof CONFIG !== 'undefined'
+        ? (CONFIG.SPACES || []).find(s => s.id === d.space) : null;
+      bar.style.background = sp ? sp.color : '#E2E2E2';
+    }
   },
 
   // ----------------------------------------------------------

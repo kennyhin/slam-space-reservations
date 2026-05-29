@@ -125,6 +125,12 @@ const CalendarView = {
         this._showEventDetail(info.event);
       },
 
+      // Click empty slot / day → go to reserve.html with date pre-filled
+      dateClick: (info) => {
+        const dateStr = info.dateStr.split('T')[0];
+        window.location.href = `reserve.html?date=${dateStr}`;
+      },
+
       events: [],
     });
 
