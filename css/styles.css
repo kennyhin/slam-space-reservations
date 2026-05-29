@@ -231,41 +231,47 @@ h1, h2, h3 {
 .sidebar-legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .sidebar-legend-name { font-size: 12px; font-weight: 500; color: #333; }
 
-/* Reserve button in sidebar — charcoal/red blend, dynamic */
+/* Reserve button in sidebar — SLAM red, white text, dynamic */
 .reserve-btn-sidebar {
   display: flex; align-items: center; gap: 8px;
   padding: 11px 14px; margin-top: 16px;
-  background: linear-gradient(135deg, #2D2D2D 0%, #1c1c1c 45%, #420914 100%);
-  color: #F0F0F0;
+  background: linear-gradient(135deg, #C8102E 0%, #A00020 60%, #C8102E 100%);
+  background-size: 200% 200%;
+  color: white;
   border-radius: 10px;
   font-family: 'Barlow Condensed', sans-serif;
   font-size: 14px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.08em;
   text-decoration: none;
-  border: 1px solid rgba(200,16,46,0.28);
-  box-shadow: 0 0 14px rgba(200,16,46,0.14), inset 0 1px 0 rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 0 16px rgba(200,16,46,0.35), inset 0 1px 0 rgba(255,255,255,0.15);
   transition: all 0.25s;
   position: relative; overflow: hidden;
-  animation: sidebar-pulse 3s ease-in-out infinite;
+  animation: sidebar-pulse 3s ease-in-out infinite, sidebar-gradient 4s ease infinite;
 }
 .reserve-btn-sidebar::before {
   content: '';
   position: absolute; top: 0; left: -120%;
   width: 55%; height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(200,16,46,0.18), transparent);
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent);
   animation: sidebar-shimmer 3.5s ease-in-out infinite;
   pointer-events: none;
 }
 .reserve-btn-sidebar:hover {
-  background: linear-gradient(135deg, #3a3a3a 0%, #222 40%, #5c0d1a 100%);
-  box-shadow: 0 0 26px rgba(200,16,46,0.32), inset 0 1px 0 rgba(255,255,255,0.07);
-  border-color: rgba(200,16,46,0.60);
+  background: linear-gradient(135deg, #E01535 0%, #B00025 60%, #E01535 100%);
+  box-shadow: 0 0 28px rgba(200,16,46,0.55), inset 0 1px 0 rgba(255,255,255,0.20);
+  border-color: rgba(255,255,255,0.25);
   color: white;
   transform: translateY(-1px);
 }
 @keyframes sidebar-pulse {
-  0%, 100% { box-shadow: 0 0 14px rgba(200,16,46,0.14); border-color: rgba(200,16,46,0.28); }
-  50%       { box-shadow: 0 0 24px rgba(200,16,46,0.30); border-color: rgba(200,16,46,0.52); }
+  0%, 100% { box-shadow: 0 0 16px rgba(200,16,46,0.35), inset 0 1px 0 rgba(255,255,255,0.15); }
+  50%       { box-shadow: 0 0 28px rgba(200,16,46,0.55), inset 0 1px 0 rgba(255,255,255,0.18); }
+}
+@keyframes sidebar-gradient {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 @keyframes sidebar-shimmer {
   0%        { left: -120%; }
@@ -524,8 +530,16 @@ h1, h2, h3 {
   gap: 24px;
   align-items: start;
 }
-.reserve-layout.step-review { grid-template-columns: 1fr; }
+.reserve-layout.step-review {
+  display: flex;
+  justify-content: center;
+}
 .reserve-layout.step-review .preview-card { display: none; }
+.reserve-layout.step-review .form-wrapper {
+  max-width: 640px;
+  width: 100%;
+  margin: 0;
+}
 
 /* Form fills its column fully — no internal centering */
 .reserve-layout .form-wrapper { max-width: 100%; margin: 0; }
@@ -677,11 +691,20 @@ h1, h2, h3 {
 .text-input {
   width: 100%; padding: 13px 16px;
   border: 2px solid var(--gray-border); border-radius: var(--radius-sm);
-  font-size: 15px; color: #111827; background: var(--slam-white);
+  font-size: 15px; font-family: 'Inter', sans-serif; color: #111827; background: var(--slam-white);
   transition: border-color var(--transition), box-shadow var(--transition); outline: none;
+  accent-color: var(--primary);
+  color-scheme: light;
 }
 .text-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(200,16,46,0.10); }
 .text-input.textarea { resize: vertical; min-height: 110px; line-height: 1.5; }
+/* Time/date inputs — tighter padding so the native picker icon doesn't crowd */
+input[type="time"].text-input, input[type="date"].text-input {
+  padding: 12px 14px;
+  letter-spacing: 0.02em;
+  accent-color: var(--primary);
+  color-scheme: light;
+}
 
 .bubble-group { display: flex; flex-wrap: wrap; gap: 10px; }
 .bubble-btn {
