@@ -187,6 +187,7 @@ h1, h2, h3 {
   padding: 0 24px;
   display: flex; align-items: center; justify-content: space-between;
   height: 64px; gap: 20px;
+  overflow: hidden;
 }
 .header-logo {
   display: flex; align-items: center; gap: 12px; flex-shrink: 0;
@@ -197,7 +198,13 @@ h1, h2, h3 {
   font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px; color: white;
 }
 .header-logo-img {
-  height: 32px; width: auto; object-fit: contain; flex-shrink: 0;
+  height: 30px !important;
+  max-height: 30px !important;
+  width: auto !important;
+  max-width: 120px !important;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
 }
 .header-logo-text {
   font-family: 'Barlow Condensed', sans-serif;
@@ -381,7 +388,7 @@ h1, h2, h3 {
 
 /* Events */
 .fc .fc-event {
-  border-radius: 6px !important; font-size: 10.5px !important;
+  border-radius: 6px !important; font-size: 11px !important;
   font-weight: 600 !important; padding: 2px 6px !important;
   cursor: pointer; transition: opacity 0.15s, transform 0.1s;
   border: none !important;
@@ -390,6 +397,9 @@ h1, h2, h3 {
 }
 .fc .fc-event:hover { opacity: 0.9; transform: translateY(-1px); }
 .fc .fc-daygrid-event { margin: 1px 2px !important; border-radius: 5px !important; }
+.fc .fc-event .fc-event-title,
+.fc .fc-event .fc-event-time,
+.fc .fc-daygrid-event-dot + .fc-event-title { font-size: 11px !important; }
 
 /* "+X more" link */
 .fc .fc-daygrid-more-link {
