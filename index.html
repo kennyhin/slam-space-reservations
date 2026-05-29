@@ -4,32 +4,21 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SLAM Space Reservations</title>
-  <meta name="description" content="SLAM! Nevada staff space reservation system. View available spaces and submit reservation requests." />
   <meta name="robots" content="noindex, nofollow" />
-
-  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Dancing+Script:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-
-  <!-- FullCalendar v6 -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
-
-  <!-- Stylesheet -->
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
 
-  <!-- ============================================================
-       AUTH OVERLAY
-       ============================================================ -->
+  <!-- AUTH OVERLAY -->
   <div class="auth-overlay" id="auth-overlay">
-
     <div id="auth-loading" class="auth-loading-screen">
       <div class="auth-spinner-ring"></div>
       <span class="auth-loading-label">Loading</span>
     </div>
-
     <div class="auth-box" id="auth-box-main" style="display:none">
       <div class="auth-logo">
         <img src="images/slam-bull.png" alt="SLAM!" class="auth-logo-bull" />
@@ -43,7 +32,6 @@
       <div class="auth-divider"></div>
       <p class="auth-note">Having trouble? Contact your school administrator.</p>
     </div>
-
     <div class="auth-box auth-denied" id="auth-denied-box" style="display:none">
       <div class="auth-denied-icon">🚫</div>
       <h2>Access Denied</h2>
@@ -54,23 +42,18 @@
     </div>
   </div>
 
-  <!-- ============================================================
-       SITE HEADER
-       ============================================================ -->
+  <!-- HEADER -->
   <header class="site-header" id="site-header" style="display:none">
     <div class="header-inner">
       <a href="index.html" class="header-logo">
         <img src="images/slam-logo.png" alt="SLAM!" class="header-logo-img" />
         <div class="header-logo-text">Reservations</div>
       </a>
-
       <button class="nav-toggle" id="nav-toggle" aria-label="Open navigation" onclick="toggleNav()">☰</button>
-
       <nav class="header-nav" id="header-nav">
         <a href="index.html" class="nav-link active">📅 Calendar</a>
         <a href="reserve.html" class="nav-link">+ Reserve a Space</a>
       </nav>
-
       <div class="header-user" id="header-user">
         <img class="user-avatar" id="user-avatar" src="" alt="User avatar" />
         <span class="user-name" id="user-name"></span>
@@ -79,101 +62,82 @@
     </div>
   </header>
 
-  <!-- ============================================================
-       MAIN CONTENT
-       ============================================================ -->
-  <main class="page-content" id="main-content" style="display:none">
+  <!-- 3-COLUMN APP LAYOUT -->
+  <main class="app-layout" id="main-content" style="display:none">
 
-    <div class="page-header">
-      <h1 class="page-title">Space <span>Calendar</span></h1>
-      <p class="page-subtitle">View upcoming reservations. Click any event or item for details.</p>
-    </div>
+    <!-- LEFT SIDEBAR -->
+    <aside class="sidebar-left">
 
-    <!-- Space legend -->
-    <div class="space-legend" id="space-legend"></div>
+      <!-- Mini calendar -->
+      <div class="mini-cal-widget">
+        <div class="mini-cal-nav">
+          <button class="mini-nav-btn" onclick="MiniCal.prev()">‹</button>
+          <span class="mini-cal-label" id="mini-cal-month"></span>
+          <button class="mini-nav-btn" onclick="MiniCal.next()">›</button>
+        </div>
+        <div class="mini-cal-days-header" id="mini-cal-header"></div>
+        <div class="mini-cal-days" id="mini-cal-grid"></div>
+      </div>
 
-    <!-- Two-column layout: calendar + side panel -->
-    <div class="calendar-layout">
+      <div class="sidebar-divider"></div>
 
-      <!-- Main calendar -->
-      <div class="calendar-main">
-        <div class="calendar-card">
-          <div class="calendar-card-header">
-            <span class="calendar-card-title">Reservations Calendar</span>
-            <a href="reserve.html" class="reserve-btn">+ Reserve a Space</a>
-          </div>
-          <div class="calendar-body">
-            <div class="calendar-loading" id="calendar-loading">
-              <div class="spinner"></div>
-              <span class="loading-text">Loading reservations…</span>
-            </div>
-            <div class="calendar-error" id="calendar-error"></div>
-            <div id="calendar"></div>
-          </div>
+      <!-- Spaces legend -->
+      <div class="sidebar-section-label">Spaces</div>
+      <div id="sidebar-legend"></div>
+
+      <div class="sidebar-divider"></div>
+
+      <!-- Reserve button -->
+      <a href="reserve.html" class="reserve-btn-sidebar">
+        <span class="reserve-btn-icon">+</span>
+        Reserve a Space
+      </a>
+
+    </aside>
+
+    <!-- MAIN CALENDAR (5-day timeline) -->
+    <section class="calendar-main">
+      <div class="calendar-loading-overlay" id="calendar-loading">
+        <div class="spinner"></div>
+        <span class="loading-text">Loading reservations…</span>
+      </div>
+      <div class="calendar-error-bar" id="calendar-error"></div>
+      <div id="calendar"></div>
+    </section>
+
+    <!-- RIGHT DETAIL PANEL -->
+    <aside class="sidebar-right">
+      <div class="detail-panel" id="detail-panel">
+        <div class="detail-empty" id="detail-empty">
+          <div class="detail-empty-icon">🗓</div>
+          <div class="detail-empty-title">No event selected</div>
+          <div class="detail-empty-sub">Click any reservation on the calendar to see its details here</div>
         </div>
       </div>
-
-      <!-- Side panel: upcoming this week -->
-      <div class="side-panel">
-        <div class="side-panel-header">
-          <div class="side-panel-title">This Week</div>
-          <div class="side-panel-subtitle">Next 7 days · tap for details</div>
-        </div>
-        <div class="side-panel-list" id="upcoming-week-list">
-          <div class="side-panel-empty">Loading…</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Today's events — full width below -->
-    <div class="today-card">
-      <div class="today-card-header">
-        <span class="today-card-title" id="today-date-label">Today</span>
-        <span class="today-card-date" id="today-date-sub"></span>
-      </div>
-      <div class="today-list-inner" id="today-list">
-        <div class="today-empty"><div class="today-empty-icon">⏳</div>Loading…</div>
-      </div>
-    </div>
+    </aside>
 
   </main>
 
-  <!-- Event detail modal -->
+  <!-- Mobile modal (fallback for small screens) -->
   <div class="modal-overlay" id="event-modal" onclick="if(event.target===this)CalendarView.closeModal()">
     <div class="modal-box">
       <div id="event-modal-content"></div>
     </div>
   </div>
 
-  <!-- ============================================================
-       FOOTER
-       ============================================================ -->
+  <!-- FOOTER -->
   <footer class="site-footer" id="site-footer" style="display:none">
     <p>SLAM Space Reservations &nbsp;·&nbsp; For staff use only &nbsp;·&nbsp; <a href="https://slamnvathletics.org" target="_blank">SLAM Athletics ↗</a></p>
   </footer>
 
-  <!-- ============================================================
-       SCRIPTS
-       ============================================================ -->
+  <!-- SCRIPTS -->
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-
   <script src="js/config.js"></script>
   <script src="js/auth.js"></script>
   <script src="js/calendar.js"></script>
 
   <script>
-    function buildLegend() {
-      const el = document.getElementById('space-legend');
-      CONFIG.SPACES.forEach((s) => {
-        const item = document.createElement('div');
-        item.className = 'legend-item';
-        item.innerHTML = `<div class="legend-dot" style="background:${s.color}"></div>${s.label}`;
-        el.appendChild(item);
-      });
-    }
-
     function showSite(user) {
       document.getElementById('auth-overlay').classList.add('hidden');
       document.getElementById('site-header').style.display = '';
@@ -185,7 +149,16 @@
       else avatar.style.display = 'none';
       document.getElementById('user-name').textContent = user.given_name || user.name;
 
-      buildLegend();
+      // Build sidebar legend
+      const legend = document.getElementById('sidebar-legend');
+      CONFIG.SPACES.forEach(s => {
+        const item = document.createElement('div');
+        item.className = 'sidebar-legend-item';
+        item.innerHTML = `<div class="sidebar-legend-dot" style="background:${s.color}"></div><span class="sidebar-legend-name">${s.label}</span>`;
+        legend.appendChild(item);
+      });
+
+      MiniCal.init();
       CalendarView.init();
     }
 
