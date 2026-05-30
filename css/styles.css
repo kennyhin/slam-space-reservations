@@ -738,7 +738,64 @@ input[type="time"].text-input, input[type="date"].text-input {
 
 .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-/* ---- Custom Time Picker ---- */
+/* ---- Multi-Entry Date/Time Chips ---- */
+.entries-header {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--gray-medium); margin-bottom: 10px;
+}
+.entry-chip {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; margin-bottom: 8px;
+  background: var(--slam-white); border: 2px solid var(--gray-border);
+  border-radius: var(--radius-sm);
+  transition: border-color 0.15s;
+}
+.entry-chip:hover { border-color: var(--gray-medium); }
+.entry-chip-info { flex: 1; }
+.entry-chip-date {
+  font-size: 14px; font-weight: 600; color: #111827;
+}
+.entry-chip-time {
+  font-size: 12px; color: var(--gray-medium); margin-top: 2px;
+}
+.entry-chip-remove {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 1.5px solid var(--gray-border); background: var(--slam-white);
+  color: var(--gray-medium); font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; flex-shrink: 0; margin-left: 12px;
+}
+.entry-chip-remove:hover {
+  background: #FEF2F2; border-color: #FECACA; color: #B91C1C;
+}
+
+/* Review entries section */
+.review-entries-section {
+  padding: 14px 20px;
+  border-top: 2px solid var(--gray-border);
+}
+.review-entries-label {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--gray-medium); margin-bottom: 10px;
+}
+.review-entry-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--gray-border);
+}
+.review-entry-item:last-child { border-bottom: none; }
+.review-entry-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+}
+.review-entry-info { flex: 1; }
+.review-entry-date {
+  font-size: 14px; font-weight: 600; color: #111827;
+}
+.review-entry-time {
+  font-size: 12px; color: var(--gray-medium); margin-top: 1px;
+}
 .tp {
   display: flex; align-items: center; gap: 4px;
   border: 2px solid var(--gray-border); border-radius: var(--radius-sm);

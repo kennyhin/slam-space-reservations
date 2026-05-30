@@ -87,25 +87,63 @@ function doPost(e) {
     const auth = verifyToken(data.token);
     if (!auth.valid) return jsonResponse({ error: 'Unauthorized', message: auth.message });
 
-    const required = ['teacherName', 'gradeLevel', 'purpose', 'space', 'date', 'startTime', 'endTime'];
+    const required = ['teacherName', 'gradeLevel', 'purpose', 'space'];
     for (const field of required) {
       if (!data[field]) return jsonResponse({ success: false, message: 'Missing field: ' + field });
     }
 
     if (!CALENDAR_IDS[data.space]) return jsonResponse({ success: false, message: 'Invalid space.' });
 
-    const conflict = checkConflict(data.space, data.date, data.startTime, data.endTime);
-    if (conflict) {
-      return jsonResponse({
-        success: false, conflict: true,
-        message: 'This space already has a reservation during that time: "' + conflict.title + '". Please choose a different time or space.',
-      });
+    // Support both legacy single-date and new multi-date entries
+    let entries = [];
+    if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
+      entries = data.entries;
+    } else if (data.date) {
+      // Legacy single-date submission
+      entries = [{ date: data.date, startTime: data.startTime, endTime: data.endTime }];
+    } else {
+      return jsonResponse({ success: false, message: 'No date entries provided.' });
     }
 
-    saveToSheet(data, auth.email);
-    sendSubmissionEmails(data, auth.email);
+    // Validate all entries first
+    for (const entry of entries) {
+      if (!entry.date || !entry.startTime || !entry.endTime) {
+        return jsonResponse({ success: false, message: 'Each entry must have date, startTime, and endTime.' });
+      }
+    }
 
-    return jsonResponse({ success: true, message: 'Request submitted successfully.' });
+    // Check conflicts for every entry — report the first one found
+    for (const entry of entries) {
+      const conflict = checkConflict(data.space, entry.date, entry.startTime, entry.endTime);
+      if (conflict) {
+        return jsonResponse({
+          success: false, conflict: true,
+          message: 'Conflict on ' + formatDateLong(entry.date) + ' (' + formatTime12(entry.startTime) + ' – ' + formatTime12(entry.endTime) + '): "' + conflict.title + '". Please choose a different time or date.',
+        });
+      }
+    }
+
+    // All clear — save one row per entry and collect dates for email
+    const savedDates = [];
+    for (const entry of entries) {
+      saveToSheet({
+        teacherName: data.teacherName,
+        gradeLevel:  data.gradeLevel,
+        purpose:     data.purpose,
+        space:       data.space,
+        date:        entry.date,
+        startTime:   entry.startTime,
+        endTime:     entry.endTime,
+      }, auth.email);
+      savedDates.push(entry);
+    }
+
+    sendSubmissionEmailsMulti(data, auth.email, savedDates);
+
+    return jsonResponse({
+      success: true,
+      message: 'Request submitted for ' + entries.length + ' date' + (entries.length > 1 ? 's' : '') + '.',
+    });
   } catch (err) {
     Logger.log('doPost error: ' + err.message);
     return jsonResponse({ error: err.message });
@@ -337,38 +375,59 @@ function approveRow(row, sheet, ui) {
 // ============================================================
 
 function sendSubmissionEmails(data, submitterEmail) {
+  // Legacy single-date wrapper — delegates to multi-date version
   const spaceName = SPACE_LABELS[data.space] || data.space;
   const dateStr   = formatDateLong(data.date);
   const timeStr   = formatTime12(data.startTime) + ' – ' + formatTime12(data.endTime);
+  sendSubmissionEmailsMulti(data, submitterEmail, [{ date: data.date, startTime: data.startTime, endTime: data.endTime }]);
+}
+
+function sendSubmissionEmailsMulti(data, submitterEmail, entries) {
+  const spaceName = SPACE_LABELS[data.space] || data.space;
   const sheetUrl  = SpreadsheetApp.getActiveSpreadsheet().getUrl();
 
+  // Build entries list string
+  const sortedEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+  let entriesListTeacher = '';
+  let entriesListAdmin = '';
+  sortedEntries.forEach((entry, i) => {
+    const d = formatDateLong(entry.date);
+    const t = formatTime12(entry.startTime) + ' – ' + formatTime12(entry.endTime);
+    entriesListTeacher += '  ' + (i + 1) + '. ' + d + ' · ' + t + '\n';
+    entriesListAdmin  += '  ' + (i + 1) + '. ' + d + ' · ' + t + '\n';
+  });
+
+  const count = entries.length;
+  const dateLabel = count === 1 ? formatDateLong(entries[0].date) : count + ' dates';
+
+  // Email to teacher
   MailApp.sendEmail({
     to:      submitterEmail,
-    subject: '📋 Reservation Request Received — ' + spaceName + ' on ' + dateStr,
+    subject: '📋 Reservation Request Received — ' + spaceName + ' · ' + dateLabel,
     body:
       'Hi ' + data.teacherName + ',\n\n' +
       'Your space reservation request has been received and is now pending admin approval.\n\n' +
       'REQUEST DETAILS\n' +
       '────────────────────────\n' +
-      'Space:    ' + spaceName       + '\n' +
-      'Date:     ' + dateStr         + '\n' +
-      'Time:     ' + timeStr         + '\n' +
-      'Purpose:  ' + data.purpose    + '\n' +
+      'Space:    ' + spaceName + '\n' +
+      'Purpose:  ' + data.purpose + '\n' +
       'Grade:    ' + data.gradeLevel + '\n' +
-      '────────────────────────',
+      'Dates (' + count + '):\n' + entriesListTeacher +
+      '────────────────────────\n\n' +
+      'You will receive a separate approval email for each date.',
   });
 
+  // Email to admin (Kenny)
   MailApp.sendEmail({
     to:      ADMIN_EMAIL,
-    subject: '🔔 New Reservation Request — ' + data.teacherName + ' | ' + spaceName + ' | ' + dateStr,
+    subject: '🔔 New Reservation Request — ' + data.teacherName + ' | ' + spaceName + ' | ' + dateLabel,
     body:
       'A new space reservation request has been submitted.\n\n' +
       'Teacher:  ' + data.teacherName + '\n' +
-      'Grade:    ' + data.gradeLevel  + '\n' +
-      'Purpose:  ' + data.purpose     + '\n' +
-      'Space:    ' + spaceName        + '\n' +
-      'Date:     ' + dateStr          + '\n' +
-      'Time:     ' + timeStr          + '\n\n' +
+      'Grade:    ' + data.gradeLevel + '\n' +
+      'Purpose:  ' + data.purpose + '\n' +
+      'Space:    ' + spaceName + '\n' +
+      'Dates (' + count + '):\n' + entriesListAdmin + '\n' +
       '👉 Open Reservations Sheet to approve:\n' + sheetUrl,
   });
 }

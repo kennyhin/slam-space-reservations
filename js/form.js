@@ -1,5 +1,5 @@
 // ============================================================
-// form.js — 5-step reservation wizard
+// form.js — 5-step reservation wizard with multi-date support
 // ============================================================
 
 const ReservationForm = {
@@ -10,15 +10,16 @@ const ReservationForm = {
     gradeLevel: '',
     purpose: '',
     space: '',
-    date: '',
-    startTime: '',
-    endTime: '',
+    // entries: array of { date, startTime, endTime }
+    entries: [],
   },
 
   init() {
-    // Pre-fill date from URL param (?date=YYYY-MM-DD)
+    // Pre-fill first entry date from URL param (?date=YYYY-MM-DD)
     const urlDate = new URLSearchParams(window.location.search).get('date');
-    if (urlDate) this.data.date = urlDate;
+    if (urlDate) {
+      this.data.entries.push({ date: urlDate, startTime: '08:00', endTime: '09:00' });
+    }
 
     this._buildSteps();
     this._showStep(1);
@@ -92,23 +93,38 @@ const ReservationForm = {
         <div class="space-bubble-group" id="space-bubbles">${spaceOptions}</div>
       </div>
 
-      <!-- Step 4: Date & Time -->
+      <!-- Step 4: Date & Time (multi-entry) -->
       <div class="form-step" id="step-4">
         <h2 class="step-title">When do you need it?</h2>
-        <p class="step-subtitle">Select the date and time for your reservation.</p>
-        <div class="field-group">
-          <label class="field-label">Date</label>
-          <input type="date" id="resDate" class="text-input" min="${this._todayStr()}" value="${this.data.date}" />
+        <p class="step-subtitle">Add one or more dates and times for your reservation.</p>
+
+        <!-- Single entry input form -->
+        <div id="entry-form">
+          <div class="field-group">
+            <label class="field-label">Date</label>
+            <input type="date" id="resDate" class="text-input" min="${this._todayStr()}" />
+          </div>
+          <div class="time-row">
+            <div class="field-group">
+              <label class="field-label">Start Time</label>
+              ${this._buildTimePicker('startTime', '08:00')}
+            </div>
+            <div class="field-group">
+              <label class="field-label">End Time</label>
+              ${this._buildTimePicker('endTime', '09:00')}
+            </div>
+          </div>
+          <button type="button" class="nav-btn primary" id="btn-add-entry" onclick="ReservationForm._addEntry()" style="margin-top:10px;width:100%">
+            ＋ Add Date
+          </button>
         </div>
-        <div class="time-row">
-          <div class="field-group">
-            <label class="field-label">Start Time</label>
-            ${this._buildTimePicker('startTime', this.data.startTime || '08:00')}
-          </div>
-          <div class="field-group">
-            <label class="field-label">End Time</label>
-            ${this._buildTimePicker('endTime', this.data.endTime || '09:00')}
-          </div>
+
+        <!-- List of added entries -->
+        <div id="entries-list" style="margin-top:20px"></div>
+
+        <!-- Empty state -->
+        <div id="entries-empty" style="text-align:center;padding:16px;color:#AAAAAA;font-size:13px;">
+          No dates added yet. Pick a date and time above, then click "Add Date".
         </div>
       </div>
 
@@ -117,7 +133,7 @@ const ReservationForm = {
         <h2 class="step-title">Review your request</h2>
         <p class="step-subtitle">Make sure everything looks right before submitting.</p>
         <div class="review-card" id="review-card"></div>
-        <p class="submit-note">You'll receive an email confirmation shortly after submitting. If your request is approved, you'll get another email notifying you.</p>
+        <p class="submit-note">You'll receive an email confirmation shortly after submitting. Each date will be individually reviewed for approval.</p>
       </div>
 
       <!-- Navigation -->
@@ -132,6 +148,119 @@ const ReservationForm = {
     `;
 
     this._attachBubbleListeners();
+    this._renderEntriesList();
+  },
+
+  // ----------------------------------------------------------
+  // Multi-Entry Management
+  // ----------------------------------------------------------
+
+  _addEntry() {
+    const dateEl = document.getElementById('resDate');
+    const date = dateEl ? dateEl.value : '';
+    const startTime = this._getTimeValue('startTime');
+    const endTime = this._getTimeValue('endTime');
+
+    // Validate before adding
+    if (!date) {
+      this._showErr('Please select a date.');
+      return;
+    }
+    if (!startTime || !endTime) {
+      this._showErr('Please select start and end time.');
+      return;
+    }
+    if (startTime >= endTime) {
+      this._showErr('End time must be after start time.');
+      return;
+    }
+    if (new Date(date) < new Date(this._todayStr())) {
+      this._showErr('Please select a future date.');
+      return;
+    }
+
+    // Check for duplicate dates
+    const duplicate = this.data.entries.some(e => e.date === date && e.startTime === startTime && e.endTime === endTime);
+    if (duplicate) {
+      this._showErr('This exact date and time combination has already been added.');
+      return;
+    }
+
+    this.data.entries.push({ date, startTime, endTime });
+    this._renderEntriesList();
+    this._updatePreview();
+
+    // Clear the input form for next entry
+    if (dateEl) dateEl.value = '';
+    // Reset times to default
+    this._resetTimePicker('startTime', '08:00');
+    this._resetTimePicker('endTime', '09:00');
+
+    this._clearMessages();
+  },
+
+  _removeEntry(index) {
+    this.data.entries.splice(index, 1);
+    this._renderEntriesList();
+    this._updatePreview();
+  },
+
+  _resetTimePicker(fieldId, initialValue) {
+    let h24 = 8, min = 0;
+    if (initialValue) {
+      const parts = initialValue.split(':');
+      h24 = parseInt(parts[0]) || 8;
+      min = parseInt(parts[1]) || 0;
+    }
+    const isPM = h24 >= 12;
+    const h12 = h24 % 12 || 12;
+    const minR = Math.round(min / 5) * 5 % 60;
+
+    const hEl = document.getElementById(`tp-h-${fieldId}`);
+    const mEl = document.getElementById(`tp-m-${fieldId}`);
+    if (hEl) hEl.value = String(h12);
+    if (mEl) mEl.value = String(minR);
+
+    document.querySelectorAll(`#tp-${fieldId} .tp-ampm-btn`).forEach(btn => {
+      btn.classList.toggle('active', btn.textContent === (isPM ? 'PM' : 'AM'));
+    });
+  },
+
+  _renderEntriesList() {
+    const listEl = document.getElementById('entries-list');
+    const emptyEl = document.getElementById('entries-empty');
+
+    if (!listEl || !emptyEl) return;
+
+    if (this.data.entries.length === 0) {
+      listEl.innerHTML = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+
+    // Sort entries by date
+    const sorted = [...this.data.entries].map((e, i) => ({ ...e, origIndex: i }))
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let html = `<div class="entries-header">Dates Added</div>`;
+    html += sorted.map((entry) => {
+      const dateFormatted = this._formatDateShort(entry.date);
+      const startTimeFormatted = this._formatTimeStr(entry.startTime);
+      const endTimeFormatted = this._formatTimeStr(entry.endTime);
+      return `
+        <div class="entry-chip">
+          <div class="entry-chip-info">
+            <div class="entry-chip-date">${dateFormatted}</div>
+            <div class="entry-chip-time">${startTimeFormatted} – ${endTimeFormatted}</div>
+          </div>
+          <button type="button" class="entry-chip-remove" onclick="ReservationForm._removeEntry(${entry.origIndex})" title="Remove">✕</button>
+        </div>
+      `;
+    }).join('');
+
+    listEl.innerHTML = html;
   },
 
   // ----------------------------------------------------------
@@ -191,9 +320,7 @@ const ReservationForm = {
   },
 
   _onTimeChange(fieldId) {
-    const val = this._getTimeValue(fieldId);
-    if (fieldId === 'startTime') this.data.startTime = val;
-    if (fieldId === 'endTime')   this.data.endTime   = val;
+    // No longer saving single entry to data on time change — entries managed via _addEntry
     this._updatePreview();
   },
 
@@ -211,6 +338,11 @@ const ReservationForm = {
     window.scrollTo({ top: 0, behavior: 'smooth' });
     this._clearMessages();
     this.currentStep = n;
+
+    // Step 4: render entries list when returning to it
+    if (n === 4) {
+      this._renderEntriesList();
+    }
 
     // Step 5 — narrow centered layout, hide preview card
     const layout = document.getElementById('reserve-layout');
@@ -267,12 +399,10 @@ const ReservationForm = {
       if (!this.data.space) { this._showErr('Please select a space.'); return false; }
     }
     if (n === 4) {
-      const date  = document.getElementById('resDate').value;
-      const start = this._getTimeValue('startTime');
-      const end   = this._getTimeValue('endTime');
-      if (!date)  { this._showErr('Please select a date.'); return false; }
-      if (start >= end) { this._showErr('End time must be after start time.'); return false; }
-      if (new Date(date) < new Date(this._todayStr())) { this._showErr('Please select a future date.'); return false; }
+      if (this.data.entries.length === 0) {
+        this._showErr('Please add at least one date and time.');
+        return false;
+      }
     }
     return true;
   },
@@ -280,11 +410,7 @@ const ReservationForm = {
   _saveStep(n) {
     if (n === 1) this.data.teacherName = document.getElementById('teacherName').value.trim();
     if (n === 2) this.data.purpose     = document.getElementById('purpose').value.trim();
-    if (n === 4) {
-      this.data.date      = document.getElementById('resDate').value;
-      this.data.startTime = this._getTimeValue('startTime');
-      this.data.endTime   = this._getTimeValue('endTime');
-    }
+    // Step 4 entries are managed in real-time via _addEntry/_removeEntry
   },
 
   _restoreSelections(n) {
@@ -296,13 +422,30 @@ const ReservationForm = {
       document.querySelectorAll('[data-field="space"]').forEach((b) =>
         b.classList.toggle('selected', b.dataset.value === this.data.space));
     }
+    if (n === 4) {
+      this._renderEntriesList();
+    }
   },
 
   _buildReviewCard() {
-    this._saveStep(4);
     const space = CONFIG.SPACES.find((s) => s.id === this.data.space);
     const card  = document.getElementById('review-card');
     if (!card) return;
+
+    let entriesHtml = '';
+    const sorted = [...this.data.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+    sorted.forEach(entry => {
+      entriesHtml += `
+        <div class="review-entry-item">
+          <span class="review-entry-dot" style="background:${space ? space.color : '#6B7280'}"></span>
+          <div class="review-entry-info">
+            <div class="review-entry-date">${this._formatDateStr(entry.date)}</div>
+            <div class="review-entry-time">${this._formatTimeStr(entry.startTime)} – ${this._formatTimeStr(entry.endTime)}</div>
+          </div>
+        </div>
+      `;
+    });
+
     card.innerHTML = `
       <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
       <div class="review-row"><span class="review-label">Grade Level</span><span class="review-value">${this._escape(this.data.gradeLevel)}</span></div>
@@ -310,8 +453,10 @@ const ReservationForm = {
       <div class="review-row"><span class="review-label">Space</span>
         <span class="review-value"><span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>${space ? space.label : this.data.space}</span>
       </div>
-      <div class="review-row"><span class="review-label">Date</span><span class="review-value">${this._formatDateStr(this.data.date)}</span></div>
-      <div class="review-row"><span class="review-label">Time</span><span class="review-value">${this._formatTimeStr(this.data.startTime)} – ${this._formatTimeStr(this.data.endTime)}</span></div>
+      <div class="review-entries-section">
+        <div class="review-entries-label">Dates & Times (${this.data.entries.length})</div>
+        ${entriesHtml}
+      </div>
     `;
   },
 
@@ -321,6 +466,11 @@ const ReservationForm = {
   submit() {
     this._saveStep(4);
     this._clearMessages();
+
+    if (this.data.entries.length === 0) {
+      this._showErr('Please add at least one date and time.');
+      return;
+    }
 
     const btn = document.getElementById('btn-submit');
     btn.disabled = true;
@@ -336,9 +486,7 @@ const ReservationForm = {
         gradeLevel:  this.data.gradeLevel,
         purpose:     this.data.purpose,
         space:       this.data.space,
-        date:        this.data.date,
-        startTime:   this.data.startTime,
-        endTime:     this.data.endTime,
+        entries:     this.data.entries,
       }),
     })
       .then((res) => res.json())
@@ -356,7 +504,7 @@ const ReservationForm = {
           this._showErr(data.message || 'Something went wrong. Please try again.');
           return;
         }
-        this._showConfirmation();
+        this._showConfirmation(data);
       })
       .catch((err) => {
         console.error('Submit error:', err);
@@ -369,25 +517,43 @@ const ReservationForm = {
   // ----------------------------------------------------------
   // Confirmation
   // ----------------------------------------------------------
-  _showConfirmation() {
+  _showConfirmation(data) {
     const formCard = document.querySelector('.form-card');
     if (!formCard) return;
     const space = CONFIG.SPACES.find((s) => s.id === this.data.space);
+    const count = this.data.entries.length;
+
+    let entriesSummaryHtml = '';
+    const sorted = [...this.data.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+    sorted.forEach(entry => {
+      entriesSummaryHtml += `
+        <div class="review-entry-item">
+          <span class="review-entry-dot" style="background:${space ? space.color : '#6B7280'}"></span>
+          <div class="review-entry-info">
+            <div class="review-entry-date">${this._formatDateStr(entry.date)}</div>
+            <div class="review-entry-time">${this._formatTimeStr(entry.startTime)} – ${this._formatTimeStr(entry.endTime)}</div>
+          </div>
+        </div>
+      `;
+    });
+
     formCard.innerHTML = `
       <div class="confirmation-screen">
         <div class="confirm-icon">✓</div>
         <h2 class="confirm-title">Request Submitted!</h2>
         <p class="confirm-msg">
-          Your reservation request is <strong>pending approval</strong>.
-          A confirmation email has been sent to you — you'll get another once it's approved.
+          Your reservation request for <strong>${count} date${count > 1 ? 's' : ''}</strong> is <strong>pending approval</strong>.
+          A confirmation email has been sent to you — you'll get another once each date is approved.
         </p>
         <div class="confirm-summary review-card">
           <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
           <div class="review-row"><span class="review-label">Space</span>
             <span class="review-value"><span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>${space ? space.label : this.data.space}</span>
           </div>
-          <div class="review-row"><span class="review-label">Date</span><span class="review-value">${this._formatDateStr(this.data.date)}</span></div>
-          <div class="review-row"><span class="review-label">Time</span><span class="review-value">${this._formatTimeStr(this.data.startTime)} – ${this._formatTimeStr(this.data.endTime)}</span></div>
+          <div class="review-entries-section">
+            <div class="review-entries-label">Dates & Times (${count})</div>
+            ${entriesSummaryHtml}
+          </div>
         </div>
         <div class="confirm-actions">
           <a href="index.html" class="nav-btn primary">View Calendar</a>
@@ -401,7 +567,7 @@ const ReservationForm = {
   // Reset
   // ----------------------------------------------------------
   reset() {
-    this.data = { teacherName: '', gradeLevel: '', purpose: '', space: '', date: '', startTime: '', endTime: '' };
+    this.data = { teacherName: '', gradeLevel: '', purpose: '', space: '', entries: [] };
     this.currentStep = 1;
     const formCard = document.querySelector('.form-card');
     if (formCard) formCard.innerHTML = '<div id="form-container"></div>';
@@ -427,9 +593,7 @@ const ReservationForm = {
     if (nameEl) nameEl.addEventListener('input', () => { this.data.teacherName = nameEl.value.trim(); this._updatePreview(); });
     const purposeEl = document.getElementById('purpose');
     if (purposeEl) purposeEl.addEventListener('input', () => { this.data.purpose = purposeEl.value.trim(); this._updatePreview(); });
-    const dateEl = document.getElementById('resDate');
-    if (dateEl) dateEl.addEventListener('change', () => { this.data.date = dateEl.value; this._updatePreview(); });
-    // Time pickers update via _onTimeChange — no extra listeners needed here
+    // No date listener — date input is only used for adding entries
   },
 
   _fillPurpose(text) {
@@ -460,8 +624,21 @@ const ReservationForm = {
 
     set('preview-teacher', d.teacherName || (document.getElementById('teacherName') || {}).value);
     set('preview-grade',   d.gradeLevel);
-    set('preview-date',    d.date ? this._formatDateStr(d.date) : '');
-    set('preview-time',    d.startTime && d.endTime ? `${this._formatTimeStr(d.startTime)} – ${this._formatTimeStr(d.endTime)}` : '');
+
+    // Show date count or first date
+    if (d.entries.length > 0) {
+      const sorted = [...d.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+      if (d.entries.length === 1) {
+        set('preview-date', this._formatDateStr(sorted[0].date));
+        set('preview-time', `${this._formatTimeStr(sorted[0].startTime)} – ${this._formatTimeStr(sorted[0].endTime)}`);
+      } else {
+        set('preview-date', `${d.entries.length} dates selected`);
+        set('preview-time', `${this._formatDateShort(sorted[0].date)} – ${this._formatDateShort(sorted[d.entries.length - 1].date)}`);
+      }
+    } else {
+      set('preview-date', '');
+      set('preview-time', '');
+    }
 
     const spaceEl = document.getElementById('preview-space');
     if (spaceEl) {
@@ -496,6 +673,10 @@ const ReservationForm = {
   _formatDateStr(str) {
     if (!str) return '';
     return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  },
+  _formatDateShort(str) {
+    if (!str) return '';
+    return new Date(str + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
   },
   _formatTimeStr(str) {
     if (!str) return '';
