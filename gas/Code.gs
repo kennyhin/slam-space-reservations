@@ -17,6 +17,7 @@ const SPACE_LABELS = {
 const SHEET_NAME = 'Reservations';
 const ALLOWED_DOMAIN = 'slamnv.org';
 const ADMIN_EMAIL = 'kenny.hin@slamnv.org';
+const DAYS_AHEAD = 90;
 
 // ============================================================
 // DATE/TIME HELPERS
@@ -43,8 +44,18 @@ function formatTime12(timeStr) {
 }
 
 // ============================================================
-// WEB APP ENTRY POINT
+// WEB APP ENTRY POINTS
 // ============================================================
+
+function doGet(e) {
+  try {
+    var action = (e && e.parameter && e.parameter.action) || '';
+    if (action === 'getEvents') return getEvents(e);
+    return jsonResp({ error: 'Invalid action' });
+  } catch (err) {
+    return jsonResp({ error: err && err.message ? err.message : String(err) });
+  }
+}
 
 function doPost(e) {
   var data = JSON.parse(e.postData.contents);
@@ -92,39 +103,39 @@ function doPost(e) {
   for (var j = 0; j < entries.length; j++) {
     var ent = entries[j];
     entriesFormatted += 'Date:     ' + formatDateLong(ent.date) + '\n';
-    entriesFormatted += 'Time:     ' + formatTime12(ent.startTime) + ' \u2013 ' + formatTime12(ent.endTime) + '\n';
+    entriesFormatted += 'Time:     ' + formatTime12(ent.startTime) + ' – ' + formatTime12(ent.endTime) + '\n';
     if (j < entries.length - 1) entriesFormatted += '\n';
   }
 
   // Email to teacher
   var teacherSubject, teacherBody;
   if (savedCount === 1) {
-    teacherSubject = '\uD83D\uDCCB Reservation Request Received \u2014 ' + spaceName + ' on ' + formatDateLong(entries[0].date);
+    teacherSubject = '📋 Reservation Request Received — ' + spaceName + ' on ' + formatDateLong(entries[0].date);
     teacherBody =
       'Hi ' + data.teacherName + ',\n\n' +
       'Your space reservation request has been received and is now pending admin approval.\n\n' +
       'REQUEST DETAILS\n' +
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
       'Space:    ' + spaceName + '\n' +
       'Purpose:  ' + data.purpose + '\n' +
       'Grade:    ' + data.gradeLevel + '\n' +
       entriesFormatted +
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
       'You will receive an approval email once an admin reviews your request.';
   } else {
-    teacherSubject = '\uD83D\uDCCB Reservation Request Received \u2014 ' + spaceName + ' (' + savedCount + ' dates)';
+    teacherSubject = '📋 Reservation Request Received — ' + spaceName + ' (' + savedCount + ' dates)';
     teacherBody =
       'Hi ' + data.teacherName + ',\n\n' +
       'Your space reservation request has been received and is now pending admin approval.\n\n' +
       'REQUEST DETAILS\n' +
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
       'Space:    ' + spaceName + '\n' +
       'Purpose:  ' + data.purpose + '\n' +
       'Grade:    ' + data.gradeLevel + '\n' +
       '\nDATES (' + savedCount + ')\n' +
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
       entriesFormatted +
-      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
       'Each date will be individually reviewed for approval. You will receive a separate approval email for each date.';
   }
   MailApp.sendEmail({ to: auth.email, subject: teacherSubject, body: teacherBody });
@@ -132,9 +143,9 @@ function doPost(e) {
   // Email to admin
   var adminSubject, adminBody;
   if (savedCount === 1) {
-    adminSubject = '\uD83D\uDD14 New Reservation Request \u2014 ' + data.teacherName + ' | ' + spaceName + ' | ' + formatDateLong(entries[0].date);
+    adminSubject = '🔔 New Reservation Request — ' + data.teacherName + ' | ' + spaceName + ' | ' + formatDateLong(entries[0].date);
   } else {
-    adminSubject = '\uD83D\uDD14 New Reservation Request \u2014 ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
+    adminSubject = '🔔 New Reservation Request — ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
   }
   adminBody =
     'A new space reservation request has been submitted.\n\n' +
@@ -142,14 +153,44 @@ function doPost(e) {
     'Grade:    ' + data.gradeLevel + '\n' +
     'Purpose:  ' + data.purpose + '\n' +
     'Space:    ' + spaceName + '\n' +
-    (savedCount > 1 ? '\nDATES (' + savedCount + ')\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' : '') +
+    (savedCount > 1 ? '\nDATES (' + savedCount + ')\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '') +
     entriesFormatted +
-    (savedCount > 1 ? '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' : '') +
-    '\n\uD83D\uDC49 Open Reservations Sheet to approve:\n' +
+    (savedCount > 1 ? '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '') +
+    '\n👉 Open Reservations Sheet to approve:\n' +
     SpreadsheetApp.getActiveSpreadsheet().getUrl();
   MailApp.sendEmail({ to: ADMIN_EMAIL, subject: adminSubject, body: adminBody });
 
   return jsonResp({ success: true, message: 'Saved ' + savedCount + ' rows', saved: savedCount });
+}
+
+function getEvents(e) {
+  var token = '';
+  if (e && e.parameter && e.parameter.token) token = String(e.parameter.token);
+  var auth = verifyToken(token);
+  if (!auth.valid) return jsonResp({ error: 'Unauthorized' });
+
+  var now = new Date();
+  var to = new Date(now.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000);
+
+  var events = [];
+  Object.keys(CALENDAR_IDS).forEach(function(spaceId) {
+    var cal = CalendarApp.getCalendarById(CALENDAR_IDS[spaceId]);
+    if (!cal) return;
+    var raw = cal.getEvents(now, to);
+    for (var i = 0; i < raw.length; i++) {
+      var ev = raw[i];
+      events.push({
+        id: spaceId + '::' + encodeURIComponent(ev.getId()),
+        title: ev.getTitle(),
+        start: ev.getStartTime().toISOString(),
+        end: ev.getEndTime().toISOString(),
+        space: spaceId,
+        description: ev.getDescription() || ''
+      });
+    }
+  });
+
+  return jsonResp({ events: events });
 }
 
 function verifyToken(token) {
