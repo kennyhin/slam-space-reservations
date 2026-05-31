@@ -478,22 +478,24 @@ const ReservationForm = {
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
+    const payload = {
+      action: 'submit',
+      token: Auth.getToken(),
+      teacherName: this.data.teacherName,
+      gradeLevel:  this.data.gradeLevel,
+      purpose:     this.data.purpose,
+      space:       this.data.space,
+      entries:     this.data.entries,
+      date:        this.data.entries.length > 0 ? this.data.entries[0].date : '',
+      startTime:   this.data.entries.length > 0 ? this.data.entries[0].startTime : '',
+      endTime:     this.data.entries.length > 0 ? this.data.entries[0].endTime : '',
+    };
+    console.log('SUBMIT PAYLOAD:', JSON.stringify(payload));
+
     fetch(CONFIG.SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({
-        action: 'submit',
-        token: Auth.getToken(),
-        teacherName: this.data.teacherName,
-        gradeLevel:  this.data.gradeLevel,
-        purpose:     this.data.purpose,
-        space:       this.data.space,
-        entries:     this.data.entries,
-        // Also send first entry as flat fields for backward compatibility
-        date:        this.data.entries.length > 0 ? this.data.entries[0].date : '',
-        startTime:   this.data.entries.length > 0 ? this.data.entries[0].startTime : '',
-        endTime:     this.data.entries.length > 0 ? this.data.entries[0].endTime : '',
-      }),
+      body: JSON.stringify(payload),
     })
       .then((res) => res.json())
       .then((data) => {
