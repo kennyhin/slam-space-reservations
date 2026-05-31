@@ -231,7 +231,7 @@ function checkConflict(space, date, startTime, endTime) {
 
 function saveToSheet(data, submitterEmail) {
   const ss    = SpreadsheetApp.getActiveSpreadsheet();
-  let   sheet = ss.getSheetByName(SHEET_NAME);
+  let sheet = ss.getSheetByName(SHEET_NAME);
 
   if (!sheet) {
     sheet = ss.insertSheet(SHEET_NAME);
@@ -243,6 +243,8 @@ function saveToSheet(data, submitterEmail) {
     sheet.setColumnWidth(COL.APPROVE, 120);
   }
 
+  Logger.log('saveToSheet called: ' + JSON.stringify(data));
+
   const newRow = sheet.getLastRow() + 1;
   sheet.appendRow([
     new Date(), submitterEmail,
@@ -250,6 +252,8 @@ function saveToSheet(data, submitterEmail) {
     data.space, data.date, data.startTime, data.endTime,
     'Pending', false,
   ]);
+
+  Logger.log('Saved to row ' + newRow);
 
   sheet.getRange(newRow, COL.APPROVE).insertCheckboxes();
   sheet.getRange(newRow, COL.STATUS).setBackground('#FEF9C3').setFontColor('#92400E');
