@@ -17,7 +17,34 @@ const SPACE_LABELS = {
 const SHEET_NAME = 'Reservations';
 const ALLOWED_DOMAIN = 'slamnv.org';
 const ADMIN_EMAIL = 'kenny.hin@slamnv.org';
-const DAYS_AHEAD = 90;
+
+// ============================================================
+// DATE/TIME HELPERS
+// ============================================================
+
+function formatDateLong(dateStr) {
+  if (!dateStr) return '';
+  try {
+    var d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  } catch (e) { return dateStr; }
+}
+
+function formatTime12(timeStr) {
+  if (!timeStr) return '';
+  try {
+    var parts = timeStr.split(':');
+    var h = parseInt(parts[0]);
+    var m = (parts[1] || '00').substring(0, 2);
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    var h12 = h % 12 || 12;
+    return h12 + ':' + m + ' ' + ampm;
+  } catch (e) { return timeStr; }
+}
+
+// ============================================================
+// WEB APP ENTRY POINT
+// ============================================================
 
 function doPost(e) {
   var data = JSON.parse(e.postData.contents);
@@ -59,25 +86,68 @@ function doPost(e) {
     savedCount++;
   }
 
-  // Send email to teacher
+  // Build formatted entries string for emails
   var spaceName = SPACE_LABELS[data.space] || data.space;
-  var dateList = '';
+  var entriesFormatted = '';
   for (var j = 0; j < entries.length; j++) {
     var ent = entries[j];
-    dateList += '  ' + (j + 1) + '. ' + ent.date + ' ' + ent.startTime + '-' + ent.endTime + '\n';
+    entriesFormatted += 'Date:     ' + formatDateLong(ent.date) + '\n';
+    entriesFormatted += 'Time:     ' + formatTime12(ent.startTime) + ' \u2013 ' + formatTime12(ent.endTime) + '\n';
+    if (j < entries.length - 1) entriesFormatted += '\n';
   }
-  MailApp.sendEmail({
-    to: auth.email,
-    subject: 'Reservation Received - ' + spaceName + ' (' + savedCount + ' dates)',
-    body: 'Hi ' + data.teacherName + ',\n\nYour reservation has been received.\n\nDates:\n' + dateList + '\nEach date will be individually approved.'
-  });
 
-  // Send email to admin
-  MailApp.sendEmail({
-    to: ADMIN_EMAIL,
-    subject: 'New Reservation - ' + data.teacherName + ' | ' + spaceName + ' (' + savedCount + ' dates)',
-    body: 'Teacher: ' + data.teacherName + '\nGrade: ' + data.gradeLevel + '\nSpace: ' + spaceName + '\nDates:\n' + dateList
-  });
+  // Email to teacher
+  var teacherSubject, teacherBody;
+  if (savedCount === 1) {
+    teacherSubject = '\uD83D\uDCCB Reservation Request Received \u2014 ' + spaceName + ' on ' + formatDateLong(entries[0].date);
+    teacherBody =
+      'Hi ' + data.teacherName + ',\n\n' +
+      'Your space reservation request has been received and is now pending admin approval.\n\n' +
+      'REQUEST DETAILS\n' +
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' +
+      'Space:    ' + spaceName + '\n' +
+      'Purpose:  ' + data.purpose + '\n' +
+      'Grade:    ' + data.gradeLevel + '\n' +
+      entriesFormatted +
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n' +
+      'You will receive an approval email once an admin reviews your request.';
+  } else {
+    teacherSubject = '\uD83D\uDCCB Reservation Request Received \u2014 ' + spaceName + ' (' + savedCount + ' dates)';
+    teacherBody =
+      'Hi ' + data.teacherName + ',\n\n' +
+      'Your space reservation request has been received and is now pending admin approval.\n\n' +
+      'REQUEST DETAILS\n' +
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' +
+      'Space:    ' + spaceName + '\n' +
+      'Purpose:  ' + data.purpose + '\n' +
+      'Grade:    ' + data.gradeLevel + '\n' +
+      '\nDATES (' + savedCount + ')\n' +
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' +
+      entriesFormatted +
+      '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n\n' +
+      'Each date will be individually reviewed for approval. You will receive a separate approval email for each date.';
+  }
+  MailApp.sendEmail({ to: auth.email, subject: teacherSubject, body: teacherBody });
+
+  // Email to admin
+  var adminSubject, adminBody;
+  if (savedCount === 1) {
+    adminSubject = '\uD83D\uDD14 New Reservation Request \u2014 ' + data.teacherName + ' | ' + spaceName + ' | ' + formatDateLong(entries[0].date);
+  } else {
+    adminSubject = '\uD83D\uDD14 New Reservation Request \u2014 ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
+  }
+  adminBody =
+    'A new space reservation request has been submitted.\n\n' +
+    'Teacher:  ' + data.teacherName + '\n' +
+    'Grade:    ' + data.gradeLevel + '\n' +
+    'Purpose:  ' + data.purpose + '\n' +
+    'Space:    ' + spaceName + '\n' +
+    (savedCount > 1 ? '\nDATES (' + savedCount + ')\n\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' : '') +
+    entriesFormatted +
+    (savedCount > 1 ? '\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n' : '') +
+    '\n\uD83D\uDC49 Open Reservations Sheet to approve:\n' +
+    SpreadsheetApp.getActiveSpreadsheet().getUrl();
+  MailApp.sendEmail({ to: ADMIN_EMAIL, subject: adminSubject, body: adminBody });
 
   return jsonResp({ success: true, message: 'Saved ' + savedCount + ' rows', saved: savedCount });
 }
