@@ -15,11 +15,9 @@ const ReservationForm = {
   },
 
   init() {
-    // Pre-fill first entry date from URL param (?date=YYYY-MM-DD)
+    // Pre-fill date input from URL param (?date=YYYY-MM-DD) — user picks their own time
     const urlDate = new URLSearchParams(window.location.search).get('date');
-    if (urlDate) {
-      this.data.entries.push({ date: urlDate, startTime: '08:00', endTime: '09:00' });
-    }
+    this._urlDate = urlDate || null;
 
     this._buildSteps();
     this._showStep(1);
@@ -339,9 +337,13 @@ const ReservationForm = {
     this._clearMessages();
     this.currentStep = n;
 
-    // Step 4: render entries list when returning to it
+    // Step 4: render entries list when returning to it, prefill date from URL
     if (n === 4) {
       this._renderEntriesList();
+      if (this._urlDate) {
+        const dateInput = document.getElementById('resDate');
+        if (dateInput && !dateInput.value) dateInput.value = this._urlDate;
+      }
     }
 
     // Step 5 — narrow centered layout, hide preview card
