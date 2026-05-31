@@ -490,7 +490,7 @@ const ReservationForm = {
       startTime:   this.data.entries.length > 0 ? this.data.entries[0].startTime : '',
       endTime:     this.data.entries.length > 0 ? this.data.entries[0].endTime : '',
     };
-    console.log('SUBMIT PAYLOAD:', JSON.stringify(payload));
+    window._lastSubmitPayload = JSON.stringify(payload);
 
     fetch(CONFIG.SCRIPT_URL, {
       method: 'POST',
@@ -499,6 +499,14 @@ const ReservationForm = {
     })
       .then((res) => res.json())
       .then((data) => {
+        window._lastSubmitResponse = JSON.stringify(data);
+        
+        // Show debug info on page
+        const debugInfo = document.createElement('div');
+        debugInfo.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:#1a1a2e;color:#0f0;padding:10px;font-size:11px;z-index:9999;max-height:150px;overflow:auto;';
+        debugInfo.innerHTML = '<b>DEBUG:</b> entries sent: ' + payload.entries.length + ' | response: ' + JSON.stringify(data).substring(0, 200);
+        document.body.appendChild(debugInfo);
+        
         btn.disabled = false;
         btn.textContent = 'Submit Request';
 
