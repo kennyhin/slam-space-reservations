@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Step 5 Review — Preview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    .mock-banner {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+      background: linear-gradient(135deg, #F59E0B, #D97706);
+      color: #78350F; text-align: center; padding: 8px 16px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+<div class="mock-banner">🔧 PREVIEW MODE — Step 5 Review</div>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a href="#" class="header-logo"><div class="header-logo-text">SLAM <span>Reservations</span></div></a>
+    <nav class="header-nav">
+      <a href="#" class="nav-link">📅 Calendar</a>
+      <a href="#" class="nav-link active">+ Reserve a Space</a>
+    </nav>
+    <div class="header-user">
+      <span class="user-name">Ms. Johnson</span>
+      <button class="signout-btn">Sign Out</button>
+    </div>
+  </div>
+</header>
+
+<main class="page-content">
+  <div class="page-header">
+    <a href="#" class="back-link">← Back to Calendar</a>
+    <h1 class="page-title">Reserve a <span>Space</span></h1>
+  </div>
+
+  <!-- Progress bar: all done except step 5 -->
+  <div style="display:flex;gap:8px;margin-bottom:32px;padding:0 8px;">
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+      <div style="width:32px;height:32px;border-radius:50%;background:#A8D400;color:#0B0B0B;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">✓</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#A8D400;margin-top:6px;">Info</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+      <div style="width:32px;height:32px;border-radius:50%;background:#A8D400;color:#0B0B0B;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">✓</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#A8D400;margin-top:6px;">Purpose</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+      <div style="width:32px;height:32px;border-radius:50%;background:#A8D400;color:#0B0B0B;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">✓</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#A8D400;margin-top:6px;">Space</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+      <div style="width:32px;height:32px;border-radius:50%;background:#A8D400;color:#0B0B0B;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">✓</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#A8D400;margin-top:6px;">Date & Time</div>
+    </div>
+    <div style="flex:1;display:flex;flex-direction:column;align-items:center;">
+      <div style="width:32px;height:32px;border-radius:50%;background:#C8102E;color:white;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;box-shadow:0 0 0 4px rgba(200,16,46,0.18);">5</div>
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:#C8102E;margin-top:6px;">Review</div>
+    </div>
+  </div>
+
+  <!-- Review form (centered, no preview card) -->
+  <div style="display:flex;justify-content:center;">
+    <div class="form-card" style="max-width:640px;width:100%;">
+      <h2 class="step-title">Review your request</h2>
+      <p class="step-subtitle">Make sure everything looks right before submitting.</p>
+
+      <div class="review-card">
+        <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">Ms. Johnson</span></div>
+        <div class="review-row"><span class="review-label">Grade Level</span><span class="review-value">Kinder</span></div>
+        <div class="review-row"><span class="review-label">Purpose</span><span class="review-value">PE Class</span></div>
+        <div class="review-row"><span class="review-label">Space</span><span class="review-value"><span class="review-space-dot" style="background:#E31837"></span>Cafegym</span></div>
+        <div class="review-entries-section">
+          <div class="review-entries-label">Dates &amp; Times (3)</div>
+          <div class="review-entry-item">
+            <span class="review-entry-dot" style="background:#E31837"></span>
+            <div class="review-entry-info">
+              <div class="review-entry-date">Monday, June 15, 2026</div>
+              <div class="review-entry-time">8:00 AM – 9:00 AM</div>
+            </div>
+          </div>
+          <div class="review-entry-item">
+            <span class="review-entry-dot" style="background:#E31837"></span>
+            <div class="review-entry-info">
+              <div class="review-entry-date">Wednesday, June 17, 2026</div>
+              <div class="review-entry-time">10:00 AM – 11:00 AM</div>
+            </div>
+          </div>
+          <div class="review-entry-item">
+            <span class="review-entry-dot" style="background:#E31837"></span>
+            <div class="review-entry-info">
+              <div class="review-entry-date">Friday, June 19, 2026</div>
+              <div class="review-entry-time">2:00 PM – 3:00 PM</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <p class="submit-note">You'll receive an email confirmation shortly after submitting. Each date will be individually reviewed for approval.</p>
+
+      <div class="form-nav">
+        <button class="nav-btn secondary">← Back</button>
+        <button class="nav-btn submit">Submit Request</button>
+      </div>
+    </div>
+  </div>
+</main>
+</body>
+</html>

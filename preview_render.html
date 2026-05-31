@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Step 4 Preview</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #F4F4F4; padding: 24px; }
+    .screenshot-frame {
+      max-width: 800px; margin: 0 auto; background: white;
+      border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+      overflow: hidden;
+    }
+    .header {
+      background: white; border-bottom: 1px solid #EBEBEB; height: 50px;
+      display: flex; align-items: center; padding: 0 20px; gap: 16px;
+    }
+    .header-logo { font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 17px; color: #BBBBBB; }
+    .header-logo span { color: #C8102E; }
+    .header-nav { display: flex; gap: 2px; }
+    .nav-link { padding: 5px 14px; border-radius: 6px; font-size: 11px; font-weight: 500; color: #BBBBBB; text-decoration: none; }
+    .nav-link.active { background: #F0F0F0; color: #333; }
+    .header-user { margin-left: auto; font-size: 11px; color: #AAAAAA; }
+    .page-content { max-width: 800px; margin: 0 auto; padding: 24px 24px 40px; }
+    .back-link { font-size: 12px; color: #AAAAAA; text-decoration: none; display: block; margin-bottom: 14px; }
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 700; color: #0B0B0B; text-transform: uppercase; }
+    .page-title span { color: #C8102E; }
+    .page-subtitle { font-size: 15px; color: #888B8D; margin-top: 6px; margin-bottom: 28px; }
+    .progress-bar { display: flex; gap: 8px; margin-bottom: 32px; padding: 0 8px; }
+    .step { display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .step-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; }
+    .step-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 6px; }
+    .done .step-dot { background: #A8D400; color: #0B0B0B; }
+    .done .step-label { color: #A8D400; }
+    .active .step-dot { background: #C8102E; color: white; }
+    .active .step-label { color: #C8102E; }
+    .pending .step-dot { background: white; border: 2px solid #E8E8E8; color: #888B8D; }
+    .pending .step-label { color: #888B8D; }
+    .form-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); padding: 40px; margin-bottom: 20px; border: 1px solid #E8E8E8; }
+    .step-title { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; color: #111827; margin-bottom: 6px; text-transform: uppercase; }
+    .step-subtitle { font-size: 15px; color: #888B8D; margin-bottom: 28px; }
+    .field-group { margin-bottom: 24px; }
+    .field-label { display: block; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #2D2D2D; margin-bottom: 10px; }
+    .text-input { width: 100%; padding: 13px 16px; border: 2px solid #E8E8E8; border-radius: 10px; font-size: 15px; font-family: 'Inter', sans-serif; color: #111827; }
+    .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .tp { display: flex; align-items: center; gap: 4px; border: 2px solid #E8E8E8; border-radius: 10px; padding: 11px 14px; background: white; }
+    .tp-sel { border: none; outline: none; background: transparent; font-family: 'Inter', sans-serif; font-size: 22px; font-weight: 700; color: #111; -webkit-appearance: none; appearance: none; cursor: pointer; padding: 0; text-align: center; width: 2.2ch; }
+    .tp-colon { font-size: 22px; font-weight: 700; color: #111; }
+    .tp-ampm { margin-left: auto; display: flex; border: 1.5px solid #E8E8E8; border-radius: 7px; overflow: hidden; }
+    .tp-ampm-btn { padding: 5px 10px; border: none; background: transparent; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; color: #BBBBBB; cursor: pointer; }
+    .tp-ampm-btn.active { background: #C8102E; color: white; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; padding: 13px 28px; border-radius: 50px; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border: none; cursor: pointer; }
+    .btn-primary { background: #C8102E; color: white; width: 100%; }
+    .entries-header { font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #888B8D; margin-bottom: 10px; }
+    .entry-chip { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; margin-bottom: 8px; background: white; border: 2px solid #E8E8E8; border-radius: 10px; }
+    .entry-chip-date { font-size: 14px; font-weight: 600; color: #111827; }
+    .entry-chip-time { font-size: 12px; color: #888B8D; margin-top: 2px; }
+    .entry-chip-remove { width: 28px; height: 28px; border-radius: 50%; border: 1.5px solid #E8E8E8; background: white; color: #888B8D; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: 12px; }
+    .form-nav { display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px; }
+    .form-nav .btn { padding: 13px 28px; }
+    .btn-secondary { background: white; color: #2D2D2D; border: 2px solid #E8E8E8; }
+    .preview-card { background: white; border-radius: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border: 1px solid #E8E8E8; overflow: hidden; position: sticky; top: 80px; }
+    .preview-card-header { background: #0B0B0B; padding: 12px 16px; display: flex; align-items: center; gap: 8px; }
+    .preview-card-label { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #666; }
+    .preview-card-status { margin-left: auto; font-family: 'Barlow Condensed', sans-serif; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #F59E0B; background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); padding: 2px 8px; border-radius: 20px; }
+    .preview-event-bar { height: 5px; background: #E31837; }
+    .preview-body { padding: 16px; }
+    .preview-event-title { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; color: #111; text-transform: uppercase; margin-bottom: 12px; }
+    .preview-field { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid #F4F4F4; font-size: 12px; }
+    .preview-field-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #CCCCCC; width: 50px; flex-shrink: 0; }
+    .preview-field-value { color: #333; font-weight: 500; }
+    .preview-space-chip { display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px; border-radius: 20px; font-family: 'Barlow Condensed', sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; border: 1px solid; }
+    .preview-space-dot-sm { width: 6px; height: 6px; border-radius: 50%; }
+    .reserve-layout { display: grid; grid-template-columns: 1fr 250px; gap: 24px; align-items: start; }
+    .step5 .reserve-layout { display: flex; justify-content: center; }
+    .step5 .preview-card { display: none; }
+    .step5 .form-card { max-width: 640px; width: 100%; }
+    .review-card { border: 2px solid #E8E8E8; border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+    .review-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 20px; border-bottom: 1px solid #E8E8E8; }
+    .review-row:last-child { border-bottom: none; }
+    .review-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888B8D; flex-shrink: 0; }
+    .review-value { font-size: 15px; font-weight: 600; color: #111827; text-align: right; display: flex; align-items: center; gap: 8px; }
+    .review-space-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .review-entries-section { padding: 14px 20px; border-top: 2px solid #E8E8E8; }
+    .review-entries-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #888B8D; margin-bottom: 10px; }
+    .review-entry-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #E8E8E8; }
+    .review-entry-item:last-child { border-bottom: none; }
+    .review-entry-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .review-entry-info { flex: 1; }
+    .review-entry-date { font-size: 14px; font-weight: 600; color: #111827; }
+    .review-entry-time { font-size: 12px; color: #888B8D; margin-top: 1px; }
+    .submit-note { font-size: 13px; color: #888B8D; line-height: 1.5; padding: 12px 0; }
+    .btn-submit { background: #C8102E; color: white; min-width: 180px; }
+  </style>
+</head>
+<body>
+
+<!-- STEP 4 PREVIEW -->
+<div class="screenshot-frame step4" id="step4-view">
+  <div class="header">
+    <div class="header-logo">SLAM <span>Reservations</span></div>
+    <div class="header-nav">
+      <a class="nav-link">📅 Calendar</a>
+      <a class="nav-link active">+ Reserve a Space</a>
+    </div>
+    <div class="header-user">Ms. Johnson · Sign Out</div>
+  </div>
+
+  <div class="page-content">
+    <a class="back-link">← Back to Calendar</a>
+    <h1 class="page-title">Reserve a <span>Space</span></h1>
+    <p class="page-subtitle">Complete each step below to submit your reservation request.</p>
+
+    <div class="progress-bar">
+      <div class="step done"><div class="step-dot">✓</div><div class="step-label">Info</div></div>
+      <div class="step done"><div class="step-dot">✓</div><div class="step-label">Purpose</div></div>
+      <div class="step done"><div class="step-dot">✓</div><div class="step-label">Space</div></div>
+      <div class="step active"><div class="step-dot">4</div><div class="step-label">Date & Time</div></div>
+      <div class="step pending"><div class="step-dot">5</div><div class="step-label">Review</div></div>
+    </div>
+
+    <div class="reserve-layout">
+      <div class="form-card">
+        <h2 class="step-title">When do you need it?</h2>
+        <p class="step-subtitle">Add one or more dates and times for your reservation.</p>
+
+        <!-- Entry input form -->
+        <div class="field-group">
+          <label class="field-label">Date</label>
+          <input type="date" class="text-input" />
+        </div>
+        <div class="time-row">
+          <div class="field-group">
+            <label class="field-label">Start Time</label>
+            <div class="tp">
+              <select class="tp-sel"><option>08</option></select>
+              <span class="tp-colon">:</span>
+              <select class="tp-sel"><option>00</option></select>
+              <div class="tp-ampm"><button class="tp-ampm-btn active">AM</button><button class="tp-ampm-btn">PM</button></div>
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">End Time</label>
+            <div class="tp">
+              <select class="tp-sel"><option>09</option></select>
+              <span class="tp-colon">:</span>
+              <select class="tp-sel"><option>00</option></select>
+              <div class="tp-ampm"><button class="tp-ampm-btn active">AM</button><button class="tp-ampm-btn">PM</button></div>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:10px">＋ Add Date</button>
+
+        <!-- Entries list -->
+        <div style="margin-top:20px">
+          <div class="entries-header">Dates Added</div>
+          <div class="entry-chip">
+            <div>
+              <div class="entry-chip-date">Monday, June 15, 2026</div>
+              <div class="entry-chip-time">8:00 AM – 9:00 AM</div>
+            </div>
+            <div class="entry-chip-remove">✕</div>
+          </div>
+          <div class="entry-chip">
+            <div>
+              <div class="entry-chip-date">Monday, June 22, 2026</div>
+              <div class="entry-chip-time">10:00 AM – 11:00 AM</div>
+            </div>
+            <div class="entry-chip-remove">✕</div>
+          </div>
+          <div class="entry-chip">
+            <div>
+              <div class="entry-chip-date">Monday, June 29, 2026</div>
+              <div class="entry-chip-time">2:00 PM – 3:00 PM</div>
+            </div>
+            <div class="entry-chip-remove">✕</div>
+          </div>
+        </div>
+
+        <div class="form-nav">
+          <button class="btn btn-secondary">← Back</button>
+          <button class="btn btn-primary">Next →</button>
+        </div>
+      </div>
+
+      <!-- Preview card -->
+      <div class="preview-card">
+        <div class="preview-card-header">
+          <span class="preview-card-label">Preview</span>
+          <span class="preview-card-status">Draft</span>
+        </div>
+        <div class="preview-event-bar"></div>
+        <div class="preview-body">
+          <div class="preview-event-title">PE Class</div>
+          <div class="preview-field"><span class="preview-field-label">Who</span><span class="preview-field-value">Ms. Johnson</span></div>
+          <div class="preview-field"><span class="preview-field-label">Grade</span><span class="preview-field-value">Kinder</span></div>
+          <div class="preview-field"><span class="preview-field-label">Space</span><span class="preview-field-value"><span class="preview-space-chip" style="background:#E3183718;color:#E31837;border-color:#E3183744"><span class="preview-space-dot-sm" style="background:#E31837"></span>Cafegym</span></span></div>
+          <div class="preview-field"><span class="preview-field-label">Date</span><span class="preview-field-value" style="font-weight:600;color:#111">3 dates selected</span></div>
+          <div class="preview-field"><span class="preview-field-label">Time</span><span class="preview-field-value">Mon, Jun 15 – Mon, Jun 29</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="height:40px"></div>
+
+<!-- STEP 5 PREVIEW -->
+<div class="screenshot-frame step5" id="step5-view">
+  <div class="header">
+    <div class="header-logo">SLAM <span>Reservations</span></div>
+    <div class="header-nav">
+      <a class="nav-link">📅 Calendar</a>
+      <a class="nav-link active">+ Reserve a Space</a>
+    </div>
+    <div class="header-user">Ms. Johnson · Sign Out</div>
+  </div>
+
+  <div class="page-content">
+    <a class="back-link">← Back to Calendar</a>
+    <h1 class="page-title">Reserve a <span>Space</span></h1>
+
+    <div class="progress-bar">
+      <div class="step done"><div class="step-dot">✓</div><div class="step-label">Info</div></div>
+      <div class="step done"><div class="step-dot">✓</div><div class="step-label">Purpose</div></div>
+      <div class="step done"><div class="step-dot">✓</div><div class="step-label">Space</div></div>
+      <div class="step done"><div class="step-dot">✓</div><div class="step-label">Date & Time</div></div>
+      <div class="step active"><div class="step-dot">5</div><div class="step-label">Review</div></div>
+    </div>
+
+    <div class="reserve-layout" style="display:flex;justify-content:center;">
+      <div class="form-card" style="max-width:640px;width:100%;">
+        <h2 class="step-title">Review your request</h2>
+        <p class="step-subtitle">Make sure everything looks right before submitting.</p>
+        <div class="review-card">
+          <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">Ms. Johnson</span></div>
+          <div class="review-row"><span class="review-label">Grade Level</span><span class="review-value">Kinder</span></div>
+          <div class="review-row"><span class="review-label">Purpose</span><span class="review-value">PE Class</span></div>
+          <div class="review-row"><span class="review-label">Space</span><span class="review-value"><span class="review-space-dot" style="background:#E31837"></span>Cafegym</span></div>
+          <div class="review-entries-section">
+            <div class="review-entries-label">Dates & Times (3)</div>
+            <div class="review-entry-item">
+              <span class="review-entry-dot" style="background:#E31837"></span>
+              <div class="review-entry-info">
+                <div class="review-entry-date">Monday, June 15, 2026</div>
+                <div class="review-entry-time">8:00 AM – 9:00 AM</div>
+              </div>
+            </div>
+            <div class="review-entry-item">
+              <span class="review-entry-dot" style="background:#E31837"></span>
+              <div class="review-entry-info">
+                <div class="review-entry-date">Monday, June 22, 2026</div>
+                <div class="review-entry-time">10:00 AM – 11:00 AM</div>
+              </div>
+            </div>
+            <div class="review-entry-item">
+              <span class="review-entry-dot" style="background:#E31837"></span>
+              <div class="review-entry-info">
+                <div class="review-entry-date">Monday, June 29, 2026</div>
+                <div class="review-entry-time">2:00 PM – 3:00 PM</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="submit-note">You'll receive an email confirmation shortly after submitting. Each date will be individually reviewed for approval.</p>
+        <div class="form-nav">
+          <button class="btn btn-secondary">← Back</button>
+          <button class="btn btn-submit">Submit Request</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
