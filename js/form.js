@@ -489,6 +489,10 @@ const ReservationForm = {
         purpose:     this.data.purpose,
         space:       this.data.space,
         entries:     this.data.entries,
+        // Also send first entry as flat fields for backward compatibility
+        date:        this.data.entries.length > 0 ? this.data.entries[0].date : '',
+        startTime:   this.data.entries.length > 0 ? this.data.entries[0].startTime : '',
+        endTime:     this.data.entries.length > 0 ? this.data.entries[0].endTime : '',
       }),
     })
       .then((res) => res.json())
