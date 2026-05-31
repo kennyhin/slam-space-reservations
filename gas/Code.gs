@@ -82,7 +82,6 @@ function doGet(e) {
 function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
-    Logger.log('doPost received: ' + JSON.stringify(data));
     const auth = verifyToken(data.token);
     if (!auth.valid) return jsonResponse({ error: 'Unauthorized', message: auth.message });
 
@@ -97,10 +96,8 @@ function doPost(e) {
     let entries = [];
     if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
       entries = data.entries;
-      Logger.log('Using entries[] array, count: ' + entries.length);
     } else if (data.date) {
       entries = [{ date: data.date, startTime: data.startTime, endTime: data.endTime }];
-      Logger.log('Using legacy flat date fields');
     } else {
       return jsonResponse({ success: false, message: 'No date entries provided.' });
     }
@@ -126,7 +123,6 @@ function doPost(e) {
     // All clear — save one row per entry
     const savedDates = [];
     for (const entry of entries) {
-      Logger.log('Saving entry: ' + JSON.stringify(entry));
       saveToSheet({
         teacherName: data.teacherName,
         gradeLevel:  data.gradeLevel,
@@ -138,17 +134,18 @@ function doPost(e) {
       }, auth.email);
       savedDates.push(entry);
     }
-    Logger.log('Saved ' + savedDates.length + ' rows');
 
     sendSubmissionEmailsMulti(data, auth.email, savedDates);
 
     return jsonResponse({
       success: true,
       message: 'Request submitted for ' + entries.length + ' date' + (entries.length > 1 ? 's' : '') + '.',
+      debug_entries_received: entries.length,
+      debug_rows_saved: savedDates.length,
     });
   } catch (err) {
     Logger.log('doPost error: ' + err.message);
-    return jsonResponse({ error: err.message });
+    return jsonResponse({ error: err.message, debug_error: err.message });
   }
 }
 
