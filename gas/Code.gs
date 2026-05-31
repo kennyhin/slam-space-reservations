@@ -46,11 +46,9 @@ const COL = {
 function setup() {
   const ui = SpreadsheetApp.getUi();
 
-  // Pre-authorize all required services
   MailApp.getRemainingDailyQuota();
   CalendarApp.getDefaultCalendar();
 
-  // Try to access each space calendar explicitly
   for (const [spaceId, calId] of Object.entries(CALENDAR_IDS)) {
     try {
       const cal = CalendarApp.getCalendarById(calId);
@@ -99,7 +97,6 @@ function doPost(e) {
     if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
       entries = data.entries;
     } else if (data.date) {
-      // Legacy single-date submission
       entries = [{ date: data.date, startTime: data.startTime, endTime: data.endTime }];
     } else {
       return jsonResponse({ success: false, message: 'No date entries provided.' });
@@ -112,7 +109,7 @@ function doPost(e) {
       }
     }
 
-    // Check conflicts for every entry — report the first one found
+    // Check conflicts for every entry
     for (const entry of entries) {
       const conflict = checkConflict(data.space, entry.date, entry.startTime, entry.endTime);
       if (conflict) {
@@ -123,7 +120,7 @@ function doPost(e) {
       }
     }
 
-    // All clear — save one row per entry and collect dates for email
+    // All clear — save one row per entry
     const savedDates = [];
     for (const entry of entries) {
       saveToSheet({
@@ -226,9 +223,6 @@ function checkConflict(space, date, startTime, endTime) {
 // ============================================================
 // GOOGLE SHEETS — SAVE
 // ============================================================
-// NOTE: There is NO onEdit trigger. Approvals are done exclusively
-// via the SLAM Reservations menu → Approve Selected Row.
-// ============================================================
 
 function saveToSheet(data, submitterEmail) {
   const ss    = SpreadsheetApp.getActiveSpreadsheet();
@@ -322,7 +316,6 @@ function approveRow(row, sheet, ui) {
   const startStr  = formatTime12(startTime);
   const endStr    = formatTime12(endTime);
 
-  // Rebuild ISO date/time strings from whatever Sheets gives us
   const dateISO  = (date instanceof Date)
     ? Utilities.formatDate(date, tz, 'yyyy-MM-dd')
     : String(date);
@@ -335,26 +328,16 @@ function approveRow(row, sheet, ui) {
 
   const startDt    = new Date(dateISO + 'T' + startISO + ':00');
   const endDt      = new Date(dateISO + 'T' + endISO   + ':00');
-  const approvedAt = new Date();
 
-  const requestedStr = (requestedAt instanceof Date)
-    ? Utilities.formatDate(requestedAt, tz, 'MMM d, yyyy h:mm a')
-    : String(requestedAt);
-  const approvedStr = Utilities.formatDate(approvedAt, tz, 'MMM d, yyyy h:mm a');
-
-  // Create event on admin's personal calendar
   const title = purpose + ' (' + teacherName + ')';
   const desc  = spaceName + ' · ' + gradeLevel;
   CalendarApp.getDefaultCalendar().createEvent(title, startDt, endDt, { description: desc });
 
-  // Update sheet status
   sheet.getRange(row, COL.STATUS).setValue('Approved').setBackground('#D1FAE5').setFontColor('#065F46');
   sheet.getRange(row, COL.APPROVE).setValue(true);
 
-  // Email the teacher
   sendApprovalEmail(submitterEmail, teacherName, space, dateStr, startStr, endStr, purpose);
 
-  // Build Google Calendar link for that month
   const year   = Utilities.formatDate(startDt, tz, 'yyyy');
   const month  = Utilities.formatDate(startDt, tz, 'M');
   const day    = Utilities.formatDate(startDt, tz, 'd');
@@ -375,10 +358,6 @@ function approveRow(row, sheet, ui) {
 // ============================================================
 
 function sendSubmissionEmails(data, submitterEmail) {
-  // Legacy single-date wrapper — delegates to multi-date version
-  const spaceName = SPACE_LABELS[data.space] || data.space;
-  const dateStr   = formatDateLong(data.date);
-  const timeStr   = formatTime12(data.startTime) + ' – ' + formatTime12(data.endTime);
   sendSubmissionEmailsMulti(data, submitterEmail, [{ date: data.date, startTime: data.startTime, endTime: data.endTime }]);
 }
 
@@ -386,7 +365,6 @@ function sendSubmissionEmailsMulti(data, submitterEmail, entries) {
   const spaceName = SPACE_LABELS[data.space] || data.space;
   const sheetUrl  = SpreadsheetApp.getActiveSpreadsheet().getUrl();
 
-  // Build entries list string
   const sortedEntries = [...entries].sort((a, b) => new Date(a.date) - new Date(b.date));
   let entriesListTeacher = '';
   let entriesListAdmin = '';
@@ -443,10 +421,10 @@ function sendApprovalEmail(submitterEmail, teacherName, space, dateStr, startStr
       'Your space reservation has been approved!\n\n' +
       'APPROVED RESERVATION\n' +
       '────────────────────────\n' +
-      'Space:    ' + spaceName           + '\n' +
-      'Date:     ' + dateStr             + '\n' +
+      'Space:    ' + spaceName + '\n' +
+      'Date:     ' + dateStr + '\n' +
       'Time:     ' + startStr + ' – ' + endStr + '\n' +
-      'Purpose:  ' + purpose             + '\n' +
+      'Purpose:  ' + purpose + '\n' +
       '────────────────────────',
   });
 }
