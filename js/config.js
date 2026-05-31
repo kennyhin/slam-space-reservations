@@ -11,7 +11,7 @@ const CONFIG = {
   // 1. Your deployed Google Apps Script Web App URL
   //    (You get this after deploying Code.gs as a web app)
   // ----------------------------------------------------------
-  SCRIPT_URL: 'https://script.google.com/a/macros/slamnv.org/s/AKfycbwxkxgPt2kjOfGjtwKwQSGO3bIAbG5TYOGVApTvbcH-lXFT5VjTaFYllnMa4xEl1teT/exec',
+  SCRIPT_URL: 'https://script.google.com/macros/s/AKfycbyJjRxfxRdR2guWfqYwnnCu8X19zuvq8mRYYhGMHbzb46K9MGO3OlctWUFqU_Uu_Ddg/exec',
 
   // ----------------------------------------------------------
   // 2. Google OAuth Client ID
