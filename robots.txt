@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /_notes/
+Disallow: /CODE_DEPLOY.gs
+Disallow: /AGENT_HANDOFF.md
