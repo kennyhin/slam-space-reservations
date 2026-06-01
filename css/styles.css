@@ -289,6 +289,11 @@ h1, h2, h3 {
   border-right: 1px solid #E0E0E0;
   position: relative;
 }
+
+/* Mobile-only "Reserve a Space" bar — hidden on desktop */
+.mobile-reserve-bar {
+  display: none;
+}
 .calendar-loading-overlay {
   position: absolute; inset: 0; z-index: 20;
   background: rgba(255,255,255,0.92);
@@ -899,6 +904,34 @@ input[type="time"].text-input, input[type="date"].text-input {
   .progress-dot { width: 26px; height: 26px; font-size: 11px; }
   .form-nav { justify-content: stretch; }
   .nav-btn { flex: 1; }
+
+  /* Mobile reserve button — show at top of calendar */
+  .mobile-reserve-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 14px 20px;
+    background: linear-gradient(135deg, #C8102E 0%, #A00020 60%, #C8102E 100%);
+    background-size: 200% 200%;
+    color: white;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.10em;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(0,0,0,0.15);
+    flex-shrink: 0;
+    animation: sidebar-gradient 4s ease infinite;
+    position: relative; overflow: hidden;
+  }
+  .mobile-reserve-bar::before {
+    content: '';
+    position: absolute; top: 0; left: -120%;
+    width: 50%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    animation: sidebar-shimmer 3s ease-in-out infinite;
+    pointer-events: none;
+  }
 
   /* Reserve page — stack preview below form */
   .reserve-layout {
