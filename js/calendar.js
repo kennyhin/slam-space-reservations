@@ -95,7 +95,7 @@ const CalendarView = {
           buttonText: '5 Days',
         },
       },
-      initialView: this._isMobile() ? 'listWeek' : 'timeGridFiveDays',
+      initialView: this._isMobile() ? 'dayGridMonth' : 'timeGridFiveDays',
       headerToolbar: {
         left:   'prev,next today',
         center: 'title',
