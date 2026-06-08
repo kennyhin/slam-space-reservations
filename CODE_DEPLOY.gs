@@ -209,3 +209,151 @@ function verifyToken(token) {
 function jsonResp(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
+
+// ============================================================
+// APPROVAL SYSTEM
+// ============================================================
+// HOW TO INSTALL:
+//   1. Open the Apps Script editor (Extensions > Apps Script)
+//   2. Paste/deploy this file
+//   3. Run createApproveTrigger() ONCE from the editor
+//      (Run > Run function > createApproveTrigger)
+//   4. Grant permissions when prompted
+//
+// After that, checking the "Check To Approve" checkbox on any
+// row will automatically:
+//   • Create a calendar event on the space's calendar
+//   • Update the row status to "Approved" (green)
+//   • Email the teacher a confirmation
+// ============================================================
+
+function createApproveTrigger() {
+  // Remove any existing onEditApprove triggers to avoid duplicates
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'onEditApprove') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+  ScriptApp.newTrigger('onEditApprove')
+    .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
+    .onEdit()
+    .create();
+  Logger.log('✅ Approval trigger installed successfully.');
+}
+
+function onEditApprove(e) {
+  var sheet = e.range.getSheet();
+  if (sheet.getName() !== SHEET_NAME) return;
+
+  var col = e.range.getColumn();
+  var row = e.range.getRow();
+  if (col !== 11) return;   // Only "Check To Approve" column
+  if (row <= 1) return;     // Skip header row
+  if (String(e.value) !== 'TRUE') return;  // Only fire on check, not uncheck
+
+  // Don't double-process an already-approved row
+  var statusCell = sheet.getRange(row, 10);
+  if (statusCell.getValue() === 'Approved') return;
+
+  // Read all data from this row
+  var rowData = sheet.getRange(row, 1, 1, 11).getValues()[0];
+  var teacherEmail = rowData[1];  // Col B: Submitted By
+  var teacherName  = rowData[2];  // Col C: Teacher Name
+  var gradeLevel   = rowData[3];  // Col D: Grade Level
+  var purpose      = rowData[4];  // Col E: Purpose
+  var spaceId      = rowData[5];  // Col F: Space
+  var dateVal      = rowData[6];  // Col G: Date
+  var startTimeVal = rowData[7];  // Col H: Start Time
+  var endTimeVal   = rowData[8];  // Col I: End Time
+
+  var spaceName = SPACE_LABELS[spaceId] || spaceId;
+
+  // Normalize date — could be a Date object or a string like "2025-06-15"
+  var dateStr = normalizeDate(dateVal);
+
+  // Normalize times — could be Date objects (time fractions) or "HH:MM" strings
+  var startTimeStr = normalizeTime(startTimeVal);
+  var endTimeStr   = normalizeTime(endTimeVal);
+
+  // Build Date objects for calendar event
+  var startDt = parseDateTime(dateStr, startTimeStr);
+  var endDt   = parseDateTime(dateStr, endTimeStr);
+
+  // Create calendar event — catch errors (e.g., write access not granted)
+  var calNote = '';
+  try {
+    var calId = CALENDAR_IDS[spaceId];
+    if (calId) {
+      var cal = CalendarApp.getCalendarById(calId);
+      if (cal) {
+        var eventTitle = spaceName + ' — ' + teacherName + ' (' + gradeLevel + ')';
+        var eventDesc  = 'Purpose: ' + purpose + '\nRequested by: ' + teacherEmail;
+        cal.createEvent(eventTitle, startDt, endDt, { description: eventDesc });
+      } else {
+        calNote = 'Note: Could not find calendar for ' + spaceName + '. Please add the event manually.';
+      }
+    }
+  } catch (err) {
+    calNote = 'Note: Calendar event could not be created automatically (' + err.message + '). Please add it manually.';
+  }
+
+  // Mark row as Approved (green)
+  statusCell.setValue('Approved');
+  statusCell.setBackground('#DCFCE7').setFontColor('#166534');
+  sheet.getRange(row, 11).setBackground('#DCFCE7');
+
+  // Send confirmation email to the teacher
+  var dateLong = formatDateLong(dateStr);
+  var subject  = '✅ Reservation Approved — ' + spaceName + ' on ' + dateLong;
+  var body =
+    'Hi ' + teacherName + ',\n\n' +
+    'Great news! Your space reservation has been approved.\n\n' +
+    'APPROVED RESERVATION\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    'Space:    ' + spaceName + '\n' +
+    'Purpose:  ' + purpose + '\n' +
+    'Grade:    ' + gradeLevel + '\n' +
+    'Date:     ' + dateLong + '\n' +
+    'Time:     ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    'This reservation is now on the SLAM Reservations calendar.\n' +
+    (calNote ? '\n' + calNote + '\n' : '') +
+    '\n— SLAM Athletics Administration';
+
+  MailApp.sendEmail({ to: teacherEmail, subject: subject, body: body });
+}
+
+// ── Helpers ──────────────────────────────────────────────────
+
+function normalizeDate(val) {
+  if (!val) return '';
+  if (val instanceof Date) {
+    var y  = val.getFullYear();
+    var mo = String(val.getMonth() + 1).padStart(2, '0');
+    var d  = String(val.getDate()).padStart(2, '0');
+    return y + '-' + mo + '-' + d;
+  }
+  return String(val).split('T')[0];  // handle ISO strings too
+}
+
+function normalizeTime(val) {
+  if (!val) return '00:00';
+  if (val instanceof Date) {
+    // Sheets stores time-only as a fractional day starting from Dec 30 1899
+    var h = val.getHours();
+    var m = val.getMinutes();
+    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+  }
+  return String(val);  // already "HH:MM"
+}
+
+function parseDateTime(dateStr, timeStr) {
+  // dateStr: "YYYY-MM-DD", timeStr: "HH:MM" (24h)
+  var timeParts = timeStr.split(':');
+  var h = parseInt(timeParts[0]) || 0;
+  var m = parseInt(timeParts[1]) || 0;
+  var dt = new Date(dateStr + 'T00:00:00');
+  dt.setHours(h, m, 0, 0);
+  return dt;
+}
