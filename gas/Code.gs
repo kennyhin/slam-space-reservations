@@ -3,21 +3,38 @@
 // ============================================================
 
 const CALENDAR_IDS = {
-  'cafegym': 'c_312121ab4260fc7d2045f8298fd1aa135c36d62f7dba93137d4a70c177b5ce72@group.calendar.google.com',
-  'es-turf': 'c_a5a420a35120dc73009599256852b43f3707ca70a2af0ea6b3de2311d5cfce7a@group.calendar.google.com',
+  'cafegym':           'c_312121ab4260fc7d2045f8298fd1aa135c36d62f7dba93137d4a70c177b5ce72@group.calendar.google.com',
+  'es-turf':           'c_a5a420a35120dc73009599256852b43f3707ca70a2af0ea6b3de2311d5cfce7a@group.calendar.google.com',
   'kinder-playground': 'c_e58aaacc91b7d88d6dc7937e2ee8a1799d1efdc338f60f3daefa301cdd25c91b@group.calendar.google.com'
 };
 
 const SPACE_LABELS = {
-  'cafegym': 'Cafegym',
-  'es-turf': 'ES Turf',
+  'cafegym':           'Cafegym',
+  'es-turf':           'ES Turf',
   'kinder-playground': 'Kinder Playground'
 };
 
-const SHEET_NAME = 'Reservations';
+const SHEET_NAME   = 'Reservations';
 const ALLOWED_DOMAIN = 'slamnv.org';
-const ADMIN_EMAIL = 'kenny.hin@slamnv.org';
-const DAYS_AHEAD = 90;
+const ADMIN_EMAIL  = 'kenny.hin@slamnv.org';
+const DAYS_AHEAD   = 90;
+
+// Column index map (1-based)
+const COL = {
+  TIMESTAMP:        1,
+  SUBMITTED_BY:     2,
+  TEACHER_NAME:     3,
+  GRADE_LEVEL:      4,
+  PURPOSE:          5,
+  SPACE:            6,
+  DATE:             7,
+  START_TIME:       8,
+  END_TIME:         9,
+  STATUS:           10,
+  APPROVE:          11,
+  CONFLICT_NOTES:   12,
+  NOTIFY_CONFLICT:  13
+};
 
 // ============================================================
 // DATE/TIME HELPERS
@@ -76,29 +93,64 @@ function doPost(e) {
     return jsonResp({ success: false, message: 'No date entries provided' });
   }
 
+  // Get or create sheet
+  var ss    = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(SHEET_NAME);
+    sheet.appendRow([
+      'Timestamp', 'Submitted By', 'Teacher Name', 'Grade Level', 'Purpose',
+      'Space', 'Date', 'Start Time', 'End Time', 'Status',
+      'Approve', 'Conflict Notes', 'Send Conflict Email'
+    ]);
+    sheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground('#0B0B0B').setFontColor('#FFFFFF');
+    sheet.setFrozenRows(1);
+  }
+
   // Save one row per entry
-  var savedCount = 0;
+  var savedCount    = 0;
+  var conflictCount = 0;
+
   for (var i = 0; i < entries.length; i++) {
     var entry = entries[i];
     if (!entry.date || !entry.startTime || !entry.endTime) continue;
 
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getSheetByName(SHEET_NAME);
-    if (!sheet) {
-      sheet = ss.insertSheet(SHEET_NAME);
-      sheet.appendRow(['Timestamp', 'Submitted By', 'Teacher Name', 'Grade Level', 'Purpose', 'Space', 'Date', 'Start Time', 'End Time', 'Status', 'Check To Approve']);
-      sheet.getRange(1, 1, 1, 11).setFontWeight('bold').setBackground('#0B0B0B').setFontColor('#FFFFFF');
-      sheet.setFrozenRows(1);
-    }
+    // Check calendar for conflicts BEFORE saving
+    var conflict = checkConflict(data.space, entry.date, entry.startTime, entry.endTime);
+
     var newRow = sheet.getLastRow() + 1;
-    sheet.appendRow([new Date(), auth.email, data.teacherName, data.gradeLevel, data.purpose, data.space, entry.date, entry.startTime, entry.endTime, 'Pending', false]);
-    sheet.getRange(newRow, 11).insertCheckboxes();
-    sheet.getRange(newRow, 10).setBackground('#FEF9C3').setFontColor('#92400E');
+    sheet.appendRow([
+      new Date(), auth.email, data.teacherName, data.gradeLevel, data.purpose,
+      data.space, entry.date, entry.startTime, entry.endTime,
+      conflict ? 'CONFLICT' : 'Pending',
+      false,           // Approve checkbox
+      conflict || '',  // Conflict Notes
+      false            // Send Conflict Email checkbox
+    ]);
+
+    // Always insert the Approve checkbox
+    sheet.getRange(newRow, COL.APPROVE).insertCheckboxes();
+
+    if (conflict) {
+      // Red styling for conflict rows
+      sheet.getRange(newRow, COL.STATUS)
+        .setBackground('#FEE2E2').setFontColor('#991B1B').setFontWeight('bold');
+      sheet.getRange(newRow, COL.CONFLICT_NOTES)
+        .setBackground('#FEE2E2').setFontColor('#991B1B').setFontStyle('italic');
+      sheet.getRange(newRow, COL.NOTIFY_CONFLICT)
+        .insertCheckboxes()
+        .setBackground('#FEE2E2');
+      conflictCount++;
+    } else {
+      // Yellow "Pending" styling
+      sheet.getRange(newRow, COL.STATUS).setBackground('#FEF9C3').setFontColor('#92400E');
+    }
+
     savedCount++;
   }
 
   // Build formatted entries string for emails
-  var spaceName = SPACE_LABELS[data.space] || data.space;
+  var spaceName       = SPACE_LABELS[data.space] || data.space;
   var entriesFormatted = '';
   for (var j = 0; j < entries.length; j++) {
     var ent = entries[j];
@@ -107,7 +159,7 @@ function doPost(e) {
     if (j < entries.length - 1) entriesFormatted += '\n';
   }
 
-  // Email to teacher
+  // ── Email to teacher ──────────────────────────────────────
   var teacherSubject, teacherBody;
   if (savedCount === 1) {
     teacherSubject = '📋 Reservation Request Received — ' + spaceName + ' on ' + formatDateLong(entries[0].date);
@@ -121,7 +173,7 @@ function doPost(e) {
       'Grade:    ' + data.gradeLevel + '\n' +
       entriesFormatted +
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-      'You will receive an approval email once an admin reviews your request.';
+      'You will receive an email once an admin reviews your request.';
   } else {
     teacherSubject = '📋 Reservation Request Received — ' + spaceName + ' (' + savedCount + ' dates)';
     teacherBody =
@@ -136,18 +188,21 @@ function doPost(e) {
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
       entriesFormatted +
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-      'Each date will be individually reviewed for approval. You will receive a separate approval email for each date.';
+      'Each date will be individually reviewed. You will receive a separate email per date.';
   }
   MailApp.sendEmail({ to: auth.email, subject: teacherSubject, body: teacherBody });
 
-  // Email to admin
-  var adminSubject, adminBody;
-  if (savedCount === 1) {
-    adminSubject = '🔔 New Reservation Request — ' + data.teacherName + ' | ' + spaceName + ' | ' + formatDateLong(entries[0].date);
+  // ── Email to admin ────────────────────────────────────────
+  var adminSubject;
+  if (conflictCount > 0) {
+    adminSubject = '⚠️ CONFLICT — New Reservation — ' + data.teacherName + ' | ' + spaceName;
+  } else if (savedCount === 1) {
+    adminSubject = '🔔 New Reservation — ' + data.teacherName + ' | ' + spaceName + ' | ' + formatDateLong(entries[0].date);
   } else {
-    adminSubject = '🔔 New Reservation Request — ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
+    adminSubject = '🔔 New Reservation — ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
   }
-  adminBody =
+
+  var adminBody =
     'A new space reservation request has been submitted.\n\n' +
     'Teacher:  ' + data.teacherName + '\n' +
     'Grade:    ' + data.gradeLevel + '\n' +
@@ -156,11 +211,15 @@ function doPost(e) {
     (savedCount > 1 ? '\nDATES (' + savedCount + ')\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '') +
     entriesFormatted +
     (savedCount > 1 ? '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '') +
-    '\n👉 Open Reservations Sheet to approve:\n' +
-    SpreadsheetApp.getActiveSpreadsheet().getUrl();
+    (conflictCount > 0
+      ? '\n⚠️ ' + conflictCount + ' date(s) have CONFLICTS with existing calendar events.\n' +
+        'Check the sheet — use the "Send Conflict Email" checkbox to notify the teacher.\n'
+      : '') +
+    '\n👉 Open Reservations Sheet:\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl();
+
   MailApp.sendEmail({ to: ADMIN_EMAIL, subject: adminSubject, body: adminBody });
 
-  return jsonResp({ success: true, message: 'Saved ' + savedCount + ' rows', saved: savedCount });
+  return jsonResp({ success: true, message: 'Saved ' + savedCount + ' rows', saved: savedCount, conflicts: conflictCount });
 }
 
 function getEvents(e) {
@@ -170,7 +229,7 @@ function getEvents(e) {
   if (!auth.valid) return jsonResp({ error: 'Unauthorized' });
 
   var now = new Date();
-  var to = new Date(now.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000);
+  var to  = new Date(now.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000);
 
   var events = [];
   Object.keys(CALENDAR_IDS).forEach(function(spaceId) {
@@ -180,11 +239,11 @@ function getEvents(e) {
     for (var i = 0; i < raw.length; i++) {
       var ev = raw[i];
       events.push({
-        id: spaceId + '::' + encodeURIComponent(ev.getId()),
-        title: ev.getTitle(),
-        start: ev.getStartTime().toISOString(),
-        end: ev.getEndTime().toISOString(),
-        space: spaceId,
+        id:          spaceId + '::' + encodeURIComponent(ev.getId()),
+        title:       ev.getTitle(),
+        start:       ev.getStartTime().toISOString(),
+        end:         ev.getEndTime().toISOString(),
+        space:       spaceId,
         description: ev.getDescription() || ''
       });
     }
@@ -197,7 +256,7 @@ function verifyToken(token) {
   if (!token) return { valid: false };
   try {
     var res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token), { muteHttpExceptions: true });
-    var p = JSON.parse(res.getContentText());
+    var p   = JSON.parse(res.getContentText());
     if (p.error || !p.email) return { valid: false };
     if (!p.email.endsWith('@' + ALLOWED_DOMAIN)) return { valid: false };
     return { valid: true, email: p.email, name: p.name };
@@ -211,24 +270,55 @@ function jsonResp(data) {
 }
 
 // ============================================================
-// APPROVAL SYSTEM
+// CONFLICT CHECK
 // ============================================================
-// HOW TO INSTALL:
-//   1. Open the Apps Script editor (Extensions > Apps Script)
-//   2. Paste/deploy this file
-//   3. Run createApproveTrigger() ONCE from the editor
-//      (Run > Run function > createApproveTrigger)
+// Returns a string describing conflicting event(s), or null if clear.
+
+function checkConflict(spaceId, dateStr, startTimeStr, endTimeStr) {
+  try {
+    var calId = CALENDAR_IDS[spaceId];
+    if (!calId) return null;
+    var cal = CalendarApp.getCalendarById(calId);
+    if (!cal) return null;
+
+    var startDt = parseDateTime(dateStr, startTimeStr);
+    var endDt   = parseDateTime(dateStr, endTimeStr);
+    var events  = cal.getEvents(startDt, endDt);
+    if (events.length === 0) return null;
+
+    return events.map(function(ev) {
+      var s    = ev.getStartTime();
+      var h    = s.getHours(), m = s.getMinutes();
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      var h12  = h % 12 || 12;
+      var mStr = m < 10 ? '0' + m : '' + m;
+      return '"' + ev.getTitle() + '" at ' + h12 + ':' + mStr + ' ' + ampm;
+    }).join('; ');
+  } catch (err) {
+    return null;  // Don't block submission if calendar check fails
+  }
+}
+
+// ============================================================
+// APPROVAL & CONFLICT NOTIFICATION SYSTEM
+// ============================================================
+// HOW TO INSTALL (one-time setup):
+//   1. Open Apps Script editor: Extensions → Apps Script
+//   2. Paste/sync this file into Code.gs
+//   3. Run createApproveTrigger() once (Run menu → Run function)
 //   4. Grant permissions when prompted
 //
-// After that, checking the "Check To Approve" checkbox on any
-// row will automatically:
-//   • Create a calendar event on the space's calendar
-//   • Update the row status to "Approved" (green)
-//   • Email the teacher a confirmation
+// COLUMN K  — "Approve" checkbox
+//   Checks calendar for conflicts at approval time.
+//   If clear  → creates calendar event + emails teacher approval
+//   If conflict → blocks, unchecks box, emails admin a warning
+//
+// COLUMN M  — "Send Conflict Email" checkbox
+//   Sends teacher a polite conflict notice + asks them to re-submit
+//   Updates status → "CONFLICT - Notified"
 // ============================================================
 
 function createApproveTrigger() {
-  // Remove any existing onEditApprove triggers to avoid duplicates
   var triggers = ScriptApp.getProjectTriggers();
   for (var i = 0; i < triggers.length; i++) {
     if (triggers[i].getHandlerFunction() === 'onEditApprove') {
@@ -248,83 +338,154 @@ function onEditApprove(e) {
 
   var col = e.range.getColumn();
   var row = e.range.getRow();
-  if (col !== 11) return;   // Only "Check To Approve" column
-  if (row <= 1) return;     // Skip header row
-  if (String(e.value) !== 'TRUE') return;  // Only fire on check, not uncheck
+  if (row <= 1) return;                        // Skip header
+  if (String(e.value) !== 'TRUE') return;      // Only act on check, not uncheck
 
-  // Don't double-process an already-approved row
-  var statusCell = sheet.getRange(row, 10);
-  if (statusCell.getValue() === 'Approved') return;
+  if (col === COL.APPROVE)          handleApproval(sheet, row);
+  else if (col === COL.NOTIFY_CONFLICT) handleConflictNotification(sheet, row);
+}
 
-  // Read all data from this row
-  var rowData = sheet.getRange(row, 1, 1, 11).getValues()[0];
-  var teacherEmail = rowData[1];  // Col B: Submitted By
-  var teacherName  = rowData[2];  // Col C: Teacher Name
-  var gradeLevel   = rowData[3];  // Col D: Grade Level
-  var purpose      = rowData[4];  // Col E: Purpose
-  var spaceId      = rowData[5];  // Col F: Space
-  var dateVal      = rowData[6];  // Col G: Date
-  var startTimeVal = rowData[7];  // Col H: Start Time
-  var endTimeVal   = rowData[8];  // Col I: End Time
+// ── Approval ─────────────────────────────────────────────────
 
-  var spaceName = SPACE_LABELS[spaceId] || spaceId;
+function handleApproval(sheet, row) {
+  var statusCell    = sheet.getRange(row, COL.STATUS);
+  var currentStatus = statusCell.getValue();
+  if (currentStatus === 'Approved') return;  // Already done
 
-  // Normalize date — could be a Date object or a string like "2025-06-15"
-  var dateStr = normalizeDate(dateVal);
+  var rowData      = sheet.getRange(row, 1, 1, 13).getValues()[0];
+  var teacherEmail = rowData[COL.SUBMITTED_BY - 1];
+  var teacherName  = rowData[COL.TEACHER_NAME - 1];
+  var gradeLevel   = rowData[COL.GRADE_LEVEL - 1];
+  var purpose      = rowData[COL.PURPOSE - 1];
+  var spaceId      = rowData[COL.SPACE - 1];
+  var dateVal      = rowData[COL.DATE - 1];
+  var startTimeVal = rowData[COL.START_TIME - 1];
+  var endTimeVal   = rowData[COL.END_TIME - 1];
 
-  // Normalize times — could be Date objects (time fractions) or "HH:MM" strings
+  var spaceName    = SPACE_LABELS[spaceId] || spaceId;
+  var dateStr      = normalizeDate(dateVal);
   var startTimeStr = normalizeTime(startTimeVal);
   var endTimeStr   = normalizeTime(endTimeVal);
 
-  // Build Date objects for calendar event
+  // Re-check for conflict right at approval time (something may have changed)
+  var conflict = checkConflict(spaceId, dateStr, startTimeStr, endTimeStr);
+  if (conflict) {
+    // Block — uncheck the approve box, flag the row, alert admin
+    sheet.getRange(row, COL.APPROVE).setValue(false);
+    statusCell.setValue('CONFLICT').setBackground('#FEE2E2').setFontColor('#991B1B').setFontWeight('bold');
+    sheet.getRange(row, COL.CONFLICT_NOTES)
+      .setValue('Conflicts with: ' + conflict)
+      .setBackground('#FEE2E2').setFontColor('#991B1B').setFontStyle('italic');
+    // Make sure the Notify checkbox is there
+    var notifyCell = sheet.getRange(row, COL.NOTIFY_CONFLICT);
+    if (notifyCell.getValue() === '' || notifyCell.getValue() === false) {
+      notifyCell.insertCheckboxes();
+    }
+    notifyCell.setValue(false).setBackground('#FEE2E2');
+
+    MailApp.sendEmail({
+      to: ADMIN_EMAIL,
+      subject: '⚠️ Approval Blocked — Conflict on ' + spaceName + ' (' + formatDateLong(dateStr) + ')',
+      body:
+        'Approval was blocked for ' + teacherName + '\'s reservation.\n\n' +
+        'Space:    ' + spaceName + '\n' +
+        'Date:     ' + formatDateLong(dateStr) + '\n' +
+        'Time:     ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n\n' +
+        'Conflicts with: ' + conflict + '\n\n' +
+        'Use the "Send Conflict Email" checkbox (col M) in the sheet to notify the teacher.'
+    });
+    return;
+  }
+
+  // No conflict — create calendar event
   var startDt = parseDateTime(dateStr, startTimeStr);
   var endDt   = parseDateTime(dateStr, endTimeStr);
-
-  // Create calendar event — catch errors (e.g., write access not granted)
   var calNote = '';
   try {
-    var calId = CALENDAR_IDS[spaceId];
-    if (calId) {
-      var cal = CalendarApp.getCalendarById(calId);
-      if (cal) {
-        var eventTitle = spaceName + ' — ' + teacherName + ' (' + gradeLevel + ')';
-        var eventDesc  = 'Purpose: ' + purpose + '\nRequested by: ' + teacherEmail;
-        cal.createEvent(eventTitle, startDt, endDt, { description: eventDesc });
-      } else {
-        calNote = 'Note: Could not find calendar for ' + spaceName + '. Please add the event manually.';
-      }
+    var cal = CalendarApp.getCalendarById(CALENDAR_IDS[spaceId]);
+    if (cal) {
+      cal.createEvent(
+        spaceName + ' — ' + teacherName + ' (' + gradeLevel + ')',
+        startDt, endDt,
+        { description: 'Purpose: ' + purpose + '\nRequested by: ' + teacherEmail }
+      );
     }
   } catch (err) {
     calNote = 'Note: Calendar event could not be created automatically (' + err.message + '). Please add it manually.';
   }
 
-  // Mark row as Approved (green)
-  statusCell.setValue('Approved');
-  statusCell.setBackground('#DCFCE7').setFontColor('#166534');
-  sheet.getRange(row, 11).setBackground('#DCFCE7');
+  // Mark row green / Approved
+  statusCell.setValue('Approved').setBackground('#DCFCE7').setFontColor('#166534').setFontWeight('normal');
+  sheet.getRange(row, COL.APPROVE).setBackground('#DCFCE7');
 
-  // Send confirmation email to the teacher
-  var dateLong = formatDateLong(dateStr);
-  var subject  = '✅ Reservation Approved — ' + spaceName + ' on ' + dateLong;
-  var body =
-    'Hi ' + teacherName + ',\n\n' +
-    'Great news! Your space reservation has been approved.\n\n' +
-    'APPROVED RESERVATION\n' +
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-    'Space:    ' + spaceName + '\n' +
-    'Purpose:  ' + purpose + '\n' +
-    'Grade:    ' + gradeLevel + '\n' +
-    'Date:     ' + dateLong + '\n' +
-    'Time:     ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n' +
-    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-    'This reservation is now on the SLAM Reservations calendar.\n' +
-    (calNote ? '\n' + calNote + '\n' : '') +
-    '\n— SLAM Athletics Administration';
-
-  MailApp.sendEmail({ to: teacherEmail, subject: subject, body: body });
+  // Email teacher confirmation
+  MailApp.sendEmail({
+    to: teacherEmail,
+    subject: '✅ Reservation Approved — ' + spaceName + ' on ' + formatDateLong(dateStr),
+    body:
+      'Hi ' + teacherName + ',\n\n' +
+      'Great news! Your space reservation has been approved.\n\n' +
+      'APPROVED RESERVATION\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+      'Space:    ' + spaceName + '\n' +
+      'Purpose:  ' + purpose + '\n' +
+      'Grade:    ' + gradeLevel + '\n' +
+      'Date:     ' + formatDateLong(dateStr) + '\n' +
+      'Time:     ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      'This reservation is now on the SLAM Reservations calendar.\n' +
+      (calNote ? '\n' + calNote + '\n' : '') +
+      '\n— SLAM Athletics Administration'
+  });
 }
 
-// ── Helpers ──────────────────────────────────────────────────
+// ── Conflict Notification ─────────────────────────────────────
+
+function handleConflictNotification(sheet, row) {
+  var statusCell = sheet.getRange(row, COL.STATUS);
+  if (statusCell.getValue() === 'CONFLICT - Notified') return;  // Already sent
+
+  var rowData       = sheet.getRange(row, 1, 1, 13).getValues()[0];
+  var teacherEmail  = rowData[COL.SUBMITTED_BY - 1];
+  var teacherName   = rowData[COL.TEACHER_NAME - 1];
+  var gradeLevel    = rowData[COL.GRADE_LEVEL - 1];
+  var purpose       = rowData[COL.PURPOSE - 1];
+  var spaceId       = rowData[COL.SPACE - 1];
+  var dateVal       = rowData[COL.DATE - 1];
+  var startTimeVal  = rowData[COL.START_TIME - 1];
+  var endTimeVal    = rowData[COL.END_TIME - 1];
+  var conflictNotes = rowData[COL.CONFLICT_NOTES - 1];
+
+  var spaceName    = SPACE_LABELS[spaceId] || spaceId;
+  var dateStr      = normalizeDate(dateVal);
+  var startTimeStr = normalizeTime(startTimeVal);
+  var endTimeStr   = normalizeTime(endTimeVal);
+
+  MailApp.sendEmail({
+    to: teacherEmail,
+    subject: '⚠️ Reservation Conflict — ' + spaceName + ' on ' + formatDateLong(dateStr),
+    body:
+      'Hi ' + teacherName + ',\n\n' +
+      'Unfortunately, your space reservation request has a scheduling conflict and cannot be approved.\n\n' +
+      'YOUR REQUEST\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+      'Space:    ' + spaceName + '\n' +
+      'Purpose:  ' + purpose + '\n' +
+      'Grade:    ' + gradeLevel + '\n' +
+      'Date:     ' + formatDateLong(dateStr) + '\n' +
+      'Time:     ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      (conflictNotes ? 'CONFLICT\n' + conflictNotes + '\n\n' : '') +
+      'Please visit the SLAM Reservations site to submit a new request for a different time or date.\n\n' +
+      '— SLAM Athletics Administration'
+  });
+
+  // Update status to show notification was sent
+  statusCell.setValue('CONFLICT - Notified').setBackground('#FECACA').setFontColor('#7F1D1D');
+  sheet.getRange(row, COL.NOTIFY_CONFLICT).setBackground('#FECACA');
+}
+
+// ── Date/Time Normalizers (sheet values can be Date objects or strings) ──
 
 function normalizeDate(val) {
   if (!val) return '';
@@ -334,25 +495,23 @@ function normalizeDate(val) {
     var d  = String(val.getDate()).padStart(2, '0');
     return y + '-' + mo + '-' + d;
   }
-  return String(val).split('T')[0];  // handle ISO strings too
+  return String(val).split('T')[0];
 }
 
 function normalizeTime(val) {
   if (!val) return '00:00';
   if (val instanceof Date) {
-    // Sheets stores time-only as a fractional day starting from Dec 30 1899
     var h = val.getHours();
     var m = val.getMinutes();
     return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
   }
-  return String(val);  // already "HH:MM"
+  return String(val);
 }
 
 function parseDateTime(dateStr, timeStr) {
-  // dateStr: "YYYY-MM-DD", timeStr: "HH:MM" (24h)
-  var timeParts = timeStr.split(':');
-  var h = parseInt(timeParts[0]) || 0;
-  var m = parseInt(timeParts[1]) || 0;
+  var parts = timeStr.split(':');
+  var h  = parseInt(parts[0]) || 0;
+  var m  = parseInt(parts[1]) || 0;
   var dt = new Date(dateStr + 'T00:00:00');
   dt.setHours(h, m, 0, 0);
   return dt;
