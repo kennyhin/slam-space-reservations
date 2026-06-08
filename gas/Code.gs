@@ -193,6 +193,22 @@ function doPost(e) {
   MailApp.sendEmail({ to: auth.email, subject: teacherSubject, body: teacherBody });
 
   // ── Email to admin ────────────────────────────────────────
+  // Check other spaces for same-date FYI (full day, not time-specific)
+  var fyiLines = [];
+  var datesChecked = {};
+  for (var fi = 0; fi < entries.length; fi++) {
+    var fyiDate = entries[fi].date;
+    if (!datesChecked[fyiDate]) {
+      datesChecked[fyiDate] = true;
+      var fyiEvents = getOtherSpaceEventsOnDate(data.space, fyiDate);
+      if (fyiEvents.length > 0) {
+        // If multi-date, prefix each block with its date
+        var prefix = entries.length > 1 ? formatDateLong(fyiDate) + ':\n  ' : '';
+        fyiLines.push(prefix + fyiEvents.join('\n  '));
+      }
+    }
+  }
+
   var adminSubject;
   if (conflictCount > 0) {
     adminSubject = '⚠️ CONFLICT — New Reservation — ' + data.teacherName + ' | ' + spaceName;
@@ -214,6 +230,13 @@ function doPost(e) {
     (conflictCount > 0
       ? '\n⚠️ ' + conflictCount + ' date(s) have CONFLICTS with existing calendar events.\n' +
         'Check the sheet — use the "Send Conflict Email" checkbox to notify the teacher.\n'
+      : '') +
+    (fyiLines.length > 0
+      ? '\nℹ️ FYI — OTHER SPACES ALSO HAVE EVENTS ON THIS DATE\n' +
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+        fyiLines.join('\n') + '\n' +
+        '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+        '(Different space — not a conflict, just a heads-up.)\n'
       : '') +
     '\n👉 Open Reservations Sheet:\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl();
 
@@ -273,6 +296,36 @@ function jsonResp(data) {
 // CONFLICT CHECK
 // ============================================================
 // Returns a string describing conflicting event(s), or null if clear.
+
+// Returns array of FYI strings for OTHER spaces that have ANY events on the same date.
+// Used to inform admin — not a conflict, just a heads-up.
+function getOtherSpaceEventsOnDate(excludeSpaceId, dateStr) {
+  var fyi = [];
+  try {
+    var startDt = new Date(dateStr + 'T00:00:00');
+    var endDt   = new Date(dateStr + 'T23:59:59');
+    Object.keys(CALENDAR_IDS).forEach(function(spaceId) {
+      if (spaceId === excludeSpaceId) return;  // Skip the space being requested
+      var cal = CalendarApp.getCalendarById(CALENDAR_IDS[spaceId]);
+      if (!cal) return;
+      var events = cal.getEvents(startDt, endDt);
+      if (events.length === 0) return;
+      var label = SPACE_LABELS[spaceId] || spaceId;
+      var names = events.map(function(ev) {
+        var s    = ev.getStartTime();
+        var h    = s.getHours(), m = s.getMinutes();
+        var ampm = h >= 12 ? 'PM' : 'AM';
+        var h12  = h % 12 || 12;
+        var mStr = m < 10 ? '0' + m : '' + m;
+        return '"' + ev.getTitle() + '" at ' + h12 + ':' + mStr + ' ' + ampm;
+      });
+      fyi.push(label + ': ' + names.join(', '));
+    });
+  } catch (err) {
+    // Silently ignore — FYI is informational only, don't block anything
+  }
+  return fyi;
+}
 
 function checkConflict(spaceId, dateStr, startTimeStr, endTimeStr) {
   try {
