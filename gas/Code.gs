@@ -77,8 +77,9 @@ function generateRowId() {
 function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || '';
-    if (action === 'getEvents')   return getEvents(e);
-    if (action === 'getAdminRow') return getAdminRow(e);
+    if (action === 'getEvents')      return getEvents(e);
+    if (action === 'getAdminRow')    return getAdminRow(e);
+    if (action === 'getPendingRows') return getPendingRows(e);
     return jsonResp({ error: 'Invalid action' });
   } catch (err) {
     return jsonResp({ error: err && err.message ? err.message : String(err) });
@@ -280,9 +281,11 @@ function handleFormSubmission(data) {
 // ============================================================
 
 function getEvents(e) {
-  var token = (e && e.parameter && e.parameter.token) ? String(e.parameter.token) : '';
-  var auth  = verifyToken(token);
-  if (!auth.valid) return jsonResp({ error: 'Unauthorized' });
+  var key   = (e && e.parameter && e.parameter.adminKey)   ? String(e.parameter.adminKey)   : '';
+  var email = (e && e.parameter && e.parameter.adminEmail) ? String(e.parameter.adminEmail) : '';
+  var token = (e && e.parameter && e.parameter.token)      ? String(e.parameter.token)      : '';
+  var ok    = (key && email) ? verifyAdminKey(key, email) : verifyToken(token).valid;
+  if (!ok) return jsonResp({ error: 'Unauthorized' });
 
   var now, to;
   if (e.parameter.startDate && e.parameter.endDate) {
@@ -333,6 +336,46 @@ function getAdminRow(e) {
   if (!row) return jsonResp({ error: 'Request not found' });
 
   return jsonResp({ row: row });
+}
+
+// ============================================================
+// ADMIN API — GET ALL ROWS (dashboard)
+// ============================================================
+
+function getPendingRows(e) {
+  var key   = (e && e.parameter && e.parameter.adminKey)   ? String(e.parameter.adminKey)   : '';
+  var email = (e && e.parameter && e.parameter.adminEmail) ? String(e.parameter.adminEmail) : '';
+  if (!verifyAdminKey(key, email)) return jsonResp({ error: 'Unauthorized' });
+
+  var sheet = getSheet();
+  if (!sheet) return jsonResp({ rows: [] });
+
+  var values = sheet.getDataRange().getValues();
+  var rows   = [];
+  for (var i = 1; i < values.length; i++) {
+    var r  = values[i];
+    var id = String(r[COL.ROW_ID - 1] || '');
+    if (!id) continue;
+    rows.push({
+      id:            id,
+      teacherEmail:  r[COL.SUBMITTED_BY   - 1],
+      teacherName:   r[COL.TEACHER_NAME   - 1],
+      gradeLevel:    r[COL.GRADE_LEVEL    - 1],
+      purpose:       r[COL.PURPOSE        - 1],
+      spaceId:       r[COL.SPACE          - 1],
+      spaceName:     SPACE_LABELS[r[COL.SPACE - 1]] || r[COL.SPACE - 1],
+      date:          normalizeDate(r[COL.DATE       - 1]),
+      startTime:     normalizeTime(r[COL.START_TIME - 1]),
+      endTime:       normalizeTime(r[COL.END_TIME   - 1]),
+      status:        String(r[COL.STATUS - 1] || ''),
+      conflictNotes: String(r[COL.CONFLICT_NOTES - 1] || ''),
+      timestamp:     r[COL.TIMESTAMP - 1] ? new Date(r[COL.TIMESTAMP - 1]).toISOString() : ''
+    });
+  }
+
+  // Newest first
+  rows.sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+  return jsonResp({ rows: rows });
 }
 
 // ============================================================

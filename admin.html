@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Review — SLAM Reservations</title>
+  <title>Admin — SLAM Reservations</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -15,15 +15,14 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --red:    #C8102E;
-      --red-dk: #9B0020;
-      --green:  #A8D400;
-      --gray:   #888B8D;
-      --bg:     #F3F4F6;
-      --card:   #FFFFFF;
-      --border: #E5E7EB;
-      --text:   #111827;
-      --muted:  #6B7280;
+      --red:      #C8102E;
+      --red-dk:   #9B0020;
+      --orange:   #F97316;
+      --bg:       #F3F4F6;
+      --card:     #FFFFFF;
+      --border:   #E5E7EB;
+      --text:     #111827;
+      --muted:    #6B7280;
 
       --status-pending-bg:    #FEF9C3; --status-pending-fg:    #92400E;
       --status-conflict-bg:   #FEE2E2; --status-conflict-fg:   #991B1B;
@@ -32,14 +31,9 @@
       --status-notified-bg:   #FECACA; --status-notified-fg:   #7F1D1D;
     }
 
-    body {
-      font-family: 'Barlow', sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      min-height: 100vh;
-    }
+    body { font-family: 'Barlow', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 
-    /* ── Header ───────────────────────────────────────── */
+    /* ── Header ───────────────────────────────────────────── */
     .header {
       background: #0B0B0B;
       height: 50px;
@@ -51,6 +45,7 @@
       top: 0;
       z-index: 100;
     }
+    .header-left { display: flex; align-items: center; gap: 12px; }
     .header-logo {
       font-family: 'Barlow Condensed', sans-serif;
       font-weight: 800;
@@ -58,6 +53,7 @@
       color: #fff;
       letter-spacing: 0.04em;
       text-transform: uppercase;
+      text-decoration: none;
     }
     .header-logo span { color: var(--red); }
     .header-badge {
@@ -71,24 +67,8 @@
       padding: 3px 8px;
       border-radius: 4px;
     }
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .user-chip {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #ccc;
-      font-size: 13px;
-    }
-    .user-chip img {
-      width: 26px;
-      height: 26px;
-      border-radius: 50%;
-      border: 2px solid #333;
-    }
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .user-chip { color: #ccc; font-size: 13px; }
     .btn-signout {
       background: none;
       border: 1px solid #444;
@@ -102,14 +82,13 @@
     }
     .btn-signout:hover { border-color: #888; color: #fff; }
 
-    /* ── Auth screen ──────────────────────────────────── */
+    /* ── Auth screen ──────────────────────────────────────── */
     #auth-screen {
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: calc(100vh - 50px);
-      gap: 20px;
       padding: 40px 20px;
     }
     .auth-card {
@@ -121,28 +100,10 @@
       width: 100%;
       box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     }
-    .auth-lock {
-      font-size: 40px;
-      margin-bottom: 16px;
-    }
-    .auth-card h2 {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-    .auth-card p {
-      color: var(--muted);
-      font-size: 14px;
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
-    #login-form {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 4px;
-    }
+    .auth-lock { font-size: 40px; margin-bottom: 16px; }
+    .auth-card h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    .auth-card p { color: var(--muted); font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
+    #login-form { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
     #login-form input {
       width: 100%;
       padding: 11px 14px;
@@ -172,445 +133,265 @@
       margin-top: 4px;
     }
     .btn-login:hover { opacity: 0.88; }
-    .auth-error {
-      margin-top: 12px;
-      background: var(--status-conflict-bg);
-      color: var(--status-conflict-fg);
-      font-size: 13px;
-      padding: 10px 14px;
-      border-radius: 6px;
-      display: none;
-    }
+    .auth-error { margin-top: 12px; background: var(--status-conflict-bg); color: var(--status-conflict-fg); font-size: 13px; padding: 10px 14px; border-radius: 6px; display: none; }
 
-    /* ── Loading ──────────────────────────────────────── */
-    #loading-screen {
+    /* ── Loading / Error screens ──────────────────────────── */
+    #loading-screen, #error-screen {
       display: none;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: calc(100vh - 50px);
-      gap: 16px;
-      color: var(--muted);
+      gap: 14px;
+      padding: 40px 20px;
+      text-align: center;
     }
-    .spinner {
-      width: 36px;
-      height: 36px;
-      border: 3px solid var(--border);
-      border-top-color: var(--red);
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--red); border-radius: 50%; animation: spin 0.7s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    #loading-msg { font-size: 14px; color: var(--muted); }
+    #error-screen h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; }
+    #error-screen p { color: var(--muted); font-size: 14px; }
 
-    /* ── Main content ─────────────────────────────────── */
-    #main-content {
-      display: none;
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 28px 20px 60px;
+    /* ── Dashboard ────────────────────────────────────────── */
+    #dashboard-screen { display: none; max-width: 860px; margin: 0 auto; padding: 28px 20px 60px; }
+    .dash-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+    .dash-title { font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; letter-spacing: 0.02em; }
+    .dash-subtitle { font-size: 13px; color: var(--muted); }
+
+    .dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+    @media (max-width: 580px) { .dash-stats { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card { background: var(--card); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); }
+    .stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+    .stat-value { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; line-height: 1; }
+    .stat-value.red { color: var(--red); }
+
+    .dash-tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
+    .dash-tab {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      padding: 8px 18px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
     }
+    .dash-tab.active { color: var(--red); border-bottom-color: var(--red); }
 
-    .page-title {
+    .dash-list { display: flex; flex-direction: column; gap: 8px; }
+    .dash-empty { text-align: center; padding: 48px 20px; color: var(--muted); font-size: 14px; }
+    .dash-empty-icon { font-size: 36px; margin-bottom: 10px; }
+
+    .req-card {
+      background: var(--card);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      border-left-width: 3px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 13px 16px;
+      transition: box-shadow 0.15s;
+    }
+    .req-card:hover { box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+    .req-card-body { flex: 1; min-width: 0; }
+    .req-card-top { display: flex; align-items: center; gap: 7px; margin-bottom: 4px; flex-wrap: wrap; }
+    .req-name { font-size: 14px; font-weight: 600; color: var(--text); }
+    .req-space { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+    .req-space-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .req-meta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .req-conflict-note { color: #991B1B; }
+    .btn-review {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 14px;
       font-family: 'Barlow Condensed', sans-serif;
       font-size: 13px;
       font-weight: 600;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 20px;
+      color: var(--text);
+      cursor: pointer;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: border-color 0.15s, background 0.15s;
     }
+    .btn-review:hover { border-color: #9CA3AF; background: var(--bg); }
 
-    .layout {
-      display: grid;
-      grid-template-columns: 380px 1fr;
-      gap: 20px;
-      align-items: start;
-    }
-    @media (max-width: 780px) {
-      .layout { grid-template-columns: 1fr; }
-    }
+    /* ── Detail view ──────────────────────────────────────── */
+    #main-content { display: none; max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
+    .back-link { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--muted); text-decoration: none; margin-bottom: 14px; transition: color 0.15s; }
+    .back-link:hover { color: var(--text); }
+    .page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; }
+    .layout { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+    @media (max-width: 780px) { .layout { grid-template-columns: 1fr; } }
 
-    /* ── Cards ────────────────────────────────────────── */
-    .card {
-      background: var(--card);
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-      overflow: hidden;
-    }
-    .card-header {
-      padding: 16px 20px 14px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .card-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
+    .card { background: var(--card); border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); overflow: hidden; }
+    .card-header { padding: 16px 20px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
     .card-body { padding: 20px; }
 
-    /* ── Status badge ─────────────────────────────────── */
-    .status-badge {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 12px;
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      padding: 3px 10px;
-      border-radius: 20px;
-    }
-    .status-Pending          { background: var(--status-pending-bg);   color: var(--status-pending-fg); }
-    .status-CONFLICT         { background: var(--status-conflict-bg);  color: var(--status-conflict-fg); }
-    .status-Approved         { background: var(--status-approved-bg);  color: var(--status-approved-fg); }
-    .status-Denied           { background: var(--status-denied-bg);    color: var(--status-denied-fg); }
-    .status-CONFLICT-Notified{ background: var(--status-notified-bg);  color: var(--status-notified-fg); }
+    .status-badge { font-family: 'Barlow Condensed', sans-serif; font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; padding: 3px 10px; border-radius: 20px; }
+    .status-Pending           { background: var(--status-pending-bg);   color: var(--status-pending-fg); }
+    .status-CONFLICT          { background: var(--status-conflict-bg);  color: var(--status-conflict-fg); }
+    .status-Approved          { background: var(--status-approved-bg);  color: var(--status-approved-fg); }
+    .status-Denied            { background: var(--status-denied-bg);    color: var(--status-denied-fg); }
+    .status-CONFLICT-Notified { background: var(--status-notified-bg);  color: var(--status-notified-fg); }
 
-    /* ── Request detail rows ──────────────────────────── */
-    .detail-grid {
-      display: grid;
-      grid-template-columns: 110px 1fr;
-      gap: 0;
-    }
-    .detail-label {
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--muted);
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-    }
-    .detail-value {
-      font-size: 14px;
-      font-weight: 500;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-    }
-    .detail-label:last-of-type,
-    .detail-value:last-of-type { border-bottom: none; }
-    .space-dot {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      margin-right: 7px;
-      flex-shrink: 0;
-    }
+    .detail-grid { display: grid; grid-template-columns: 110px 1fr; gap: 0; }
+    .detail-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
+    .detail-value { font-size: 14px; font-weight: 500; padding: 10px 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; }
+    .detail-label:last-of-type, .detail-value:last-of-type { border-bottom: none; }
+    .space-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; flex-shrink: 0; }
 
-    /* ── Conflict banner ──────────────────────────────── */
-    .conflict-banner {
-      margin: 0 20px 0;
-      background: #FFF1F2;
-      border: 1px solid #FECDD3;
-      border-radius: 8px;
-      padding: 14px 16px;
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-    }
+    .conflict-banner { margin: 0 20px 0; background: #FFF1F2; border: 1px solid #FECDD3; border-radius: 8px; padding: 14px 16px; display: flex; gap: 12px; align-items: flex-start; }
     .conflict-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
-    .conflict-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      color: #991B1B;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 4px;
-    }
-    .conflict-note {
-      font-size: 13px;
-      color: #B91C1C;
-      line-height: 1.4;
-    }
+    .conflict-title { font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; color: #991B1B; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .conflict-note { font-size: 13px; color: #B91C1C; line-height: 1.4; }
 
-    /* ── Actions ──────────────────────────────────────── */
     .actions { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
-
-    .btn {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      width: 100%;
-      padding: 13px 20px;
-      border-radius: 8px;
-      border: none;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: opacity 0.15s, transform 0.1s;
-    }
+    .btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px 20px; border-radius: 8px; border: none; font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
     .btn:hover  { opacity: 0.88; }
     .btn:active { transform: scale(0.98); }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
-
     .btn-approve  { background: #16A34A; color: #fff; }
     .btn-deny     { background: #fff; color: #374151; border: 1.5px solid var(--border); }
     .btn-deny:hover { border-color: #9CA3AF; }
     .btn-conflict { background: #FEF3C7; color: #92400E; border: 1.5px solid #FDE68A; }
     .btn-conflict:hover { border-color: #F59E0B; }
 
-    /* ── Denial panel ─────────────────────────────────── */
-    #denial-panel {
-      display: none;
-      margin: 0 20px 16px;
-      background: #F9FAFB;
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-    }
-    #denial-panel label {
-      display: block;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 8px;
-    }
-    #denial-reason {
-      width: 100%;
-      min-height: 90px;
-      border: 1.5px solid var(--border);
-      border-radius: 6px;
-      padding: 10px 12px;
-      font-family: 'Barlow', sans-serif;
-      font-size: 14px;
-      color: var(--text);
-      resize: vertical;
-      outline: none;
-      transition: border-color 0.15s;
-    }
+    #denial-panel { display: none; margin: 0 20px 16px; background: #F9FAFB; border: 1.5px solid var(--border); border-radius: 8px; padding: 16px; }
+    #denial-panel label { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+    #denial-reason { width: 100%; min-height: 90px; border: 1.5px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Barlow', sans-serif; font-size: 14px; color: var(--text); resize: vertical; outline: none; transition: border-color 0.15s; }
     #denial-reason:focus { border-color: var(--red); }
-    .denial-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
-    .btn-cancel-denial {
-      flex: 1;
-      padding: 10px;
-      background: none;
-      border: 1.5px solid var(--border);
-      border-radius: 6px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--muted);
-      cursor: pointer;
-      transition: border-color 0.15s;
-    }
+    .denial-actions { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-cancel-denial { flex: 1; padding: 10px; background: none; border: 1.5px solid var(--border); border-radius: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; transition: border-color 0.15s; }
     .btn-cancel-denial:hover { border-color: #9CA3AF; }
-    .btn-confirm-denial {
-      flex: 2;
-      padding: 10px;
-      background: var(--red);
-      border: none;
-      border-radius: 6px;
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      color: #fff;
-      cursor: pointer;
-      transition: opacity 0.15s;
-    }
+    .btn-confirm-denial { flex: 2; padding: 10px; background: var(--red); border: none; border-radius: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #fff; cursor: pointer; transition: opacity 0.15s; }
     .btn-confirm-denial:hover { opacity: 0.88; }
 
-    /* ── Already-actioned state ───────────────────────── */
-    .actioned-msg {
-      padding: 20px;
-      text-align: center;
-    }
+    .actioned-msg { padding: 20px; text-align: center; }
     .actioned-icon { font-size: 36px; margin-bottom: 10px; }
-    .actioned-msg h3 {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 6px;
-    }
+    .actioned-msg h3 { font-family: 'Barlow Condensed', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; }
     .actioned-msg p { font-size: 13px; color: var(--muted); }
 
-    /* ── Success overlay ──────────────────────────────── */
-    #success-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.5);
-      z-index: 200;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-    }
+    #success-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
     #success-overlay.show { display: flex; }
-    .success-card {
-      background: var(--card);
-      border-radius: 16px;
-      padding: 40px 32px;
-      text-align: center;
-      max-width: 320px;
-      width: 100%;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-    }
+    .success-card { background: var(--card); border-radius: 16px; padding: 40px 32px; text-align: center; max-width: 320px; width: 100%; box-shadow: 0 20px 60px rgba(0,0,0,0.2); }
     .success-icon { font-size: 48px; margin-bottom: 16px; }
-    .success-card h2 {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
+    .success-card h2 { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; margin-bottom: 8px; }
     .success-card p { font-size: 14px; color: var(--muted); line-height: 1.5; }
 
-    /* ── Calendar ─────────────────────────────────────── */
+    /* ── Calendar ─────────────────────────────────────────── */
     .calendar-card { overflow: visible; }
     .calendar-body { padding: 16px; }
-    #admin-calendar .fc-toolbar-title {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 16px;
-      font-weight: 700;
-    }
-    #admin-calendar .fc-button {
-      background: var(--red) !important;
-      border-color: var(--red) !important;
-      font-size: 12px !important;
-      padding: 4px 8px !important;
-    }
-    #admin-calendar .fc-daygrid-event {
-      font-size: 11px;
-      border-radius: 3px;
-    }
-    #admin-calendar .fc-highlight { background: rgba(200,16,46,0.12) !important; }
+    #admin-calendar .fc-toolbar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; }
+    #admin-calendar .fc-button { background: var(--red) !important; border-color: var(--red) !important; font-size: 12px !important; padding: 4px 8px !important; }
+    #admin-calendar .fc-daygrid-event { font-size: 11px; border-radius: 3px; cursor: pointer; }
+    #admin-calendar .fc-highlight { background: rgba(249,115,22,0.12) !important; }
 
-    /* Calendar legend */
-    .cal-legend {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px 16px;
-      padding: 10px 16px 14px;
-      border-top: 1px solid var(--border);
-    }
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 12px;
-      color: var(--muted);
-    }
-    .legend-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-    .legend-item.this-request {
-      color: var(--red);
-      font-weight: 600;
-    }
-    .legend-dot.this-request {
-      background: var(--red);
-      box-shadow: 0 0 0 2px rgba(200,16,46,0.3);
-    }
+    .cal-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px 14px; border-top: 1px solid var(--border); }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .legend-item.this-request { color: var(--orange); font-weight: 600; }
+    .legend-dot.this-request  { background: var(--orange); box-shadow: 0 0 0 2px rgba(249,115,22,0.25); }
 
-    /* ── Error screen ─────────────────────────────────── */
-    #error-screen {
+    /* ── Event popup ──────────────────────────────────────── */
+    #event-popup {
       display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: calc(100vh - 50px);
-      text-align: center;
-      padding: 40px 20px;
-      gap: 12px;
+      position: fixed;
+      z-index: 300;
+      background: var(--card);
+      border-radius: 8px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.14);
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      min-width: 180px;
+      max-width: 240px;
     }
-    #error-screen h2 {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-size: 22px;
-      font-weight: 700;
-    }
-    #error-screen p { color: var(--muted); font-size: 14px; }
+    .popup-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+    .popup-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.3; }
+    .popup-close { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; line-height: 1; padding: 0; flex-shrink: 0; }
+    .popup-close:hover { color: var(--text); }
+    .popup-meta { font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+    .popup-space-row { display: flex; align-items: center; gap: 5px; }
+    .popup-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
   </style>
 </head>
 <body>
 
-<!-- ── Header ──────────────────────────────────────────── -->
+<!-- ── Header ──────────────────────────────────────────────── -->
 <header class="header">
-  <div style="display:flex;align-items:center;gap:12px;">
-    <div class="header-logo">SLAM <span>Reservations</span></div>
+  <div class="header-left">
+    <a class="header-logo" href="admin.html">SLAM <span>Reservations</span></a>
     <div class="header-badge">Admin</div>
   </div>
   <div class="header-right" id="header-user" style="display:none;">
-    <div class="user-chip">
-      <img id="user-avatar" src="" alt="" />
-      <span id="user-name"></span>
-    </div>
+    <div class="user-chip" id="user-name"></div>
     <button class="btn-signout" onclick="signOut()">Sign Out</button>
   </div>
 </header>
 
-<!-- ── Auth screen ─────────────────────────────────────── -->
+<!-- ── Auth screen ─────────────────────────────────────────── -->
 <div id="auth-screen">
   <div class="auth-card">
     <div class="auth-lock">🔐</div>
     <h2>Admin Access Only</h2>
     <p>Sign in with your admin email and password to review reservation requests.</p>
     <form id="login-form" onsubmit="handleLogin(event)">
-      <input
-        id="login-email"
-        type="email"
-        placeholder="your@slamnv.org"
-        autocomplete="email"
-        required
-      />
-      <input
-        id="login-password"
-        type="password"
-        placeholder="Password"
-        autocomplete="current-password"
-        required
-      />
+      <input id="login-email" type="email" placeholder="your@slamnv.org" autocomplete="email" required />
+      <input id="login-password" type="password" placeholder="Password" autocomplete="current-password" required />
       <button type="submit" class="btn-login">Sign In →</button>
     </form>
     <div class="auth-error" id="auth-error"></div>
   </div>
 </div>
 
-<!-- ── Loading ─────────────────────────────────────────── -->
+<!-- ── Loading ─────────────────────────────────────────────── -->
 <div id="loading-screen">
   <div class="spinner"></div>
-  <div style="font-size:14px;">Loading request…</div>
+  <div id="loading-msg">Loading…</div>
 </div>
 
-<!-- ── Error screen ────────────────────────────────────── -->
+<!-- ── Error screen ────────────────────────────────────────── -->
 <div id="error-screen">
   <div style="font-size:48px;">😕</div>
-  <h2 id="error-title">Request Not Found</h2>
-  <p id="error-msg">This approval link may be expired or invalid.</p>
+  <h2 id="error-title">Something went wrong</h2>
+  <p id="error-msg">Please try again.</p>
 </div>
 
-<!-- ── Main content ────────────────────────────────────── -->
+<!-- ── Dashboard ───────────────────────────────────────────── -->
+<div id="dashboard-screen">
+  <div class="dash-header">
+    <div class="dash-title">Dashboard</div>
+    <div class="dash-subtitle">All reservation requests</div>
+  </div>
+  <div class="dash-stats" id="dash-stats"></div>
+  <div class="dash-tabs">
+    <button class="dash-tab active" id="tab-review" onclick="switchTab('review')">
+      Needs Review (<span id="tab-review-count">0</span>)
+    </button>
+    <button class="dash-tab" id="tab-all" onclick="switchTab('all')">
+      All Requests (<span id="tab-all-count">0</span>)
+    </button>
+  </div>
+  <div class="dash-list" id="dash-list"></div>
+</div>
+
+<!-- ── Main content (detail view) ──────────────────────────── -->
 <div id="main-content">
+  <a class="back-link" href="admin.html">← Back to Dashboard</a>
   <div class="page-title">Reservation Review</div>
 
   <div class="layout">
-
     <!-- Left: Request + Actions -->
     <div style="display:flex;flex-direction:column;gap:16px;">
-
-      <!-- Request details card -->
       <div class="card">
         <div class="card-header">
           <div class="card-title">Request Details</div>
@@ -621,7 +402,6 @@
         </div>
       </div>
 
-      <!-- Conflict banner (shown only for conflicts) -->
       <div class="conflict-banner" id="conflict-banner" style="display:none;">
         <div class="conflict-icon">⚠️</div>
         <div>
@@ -630,13 +410,10 @@
         </div>
       </div>
 
-      <!-- Actions card -->
       <div class="card" id="actions-card">
         <div class="card-header">
           <div class="card-title">Actions</div>
         </div>
-
-        <!-- Denial reason panel -->
         <div id="denial-panel">
           <label for="denial-reason">Reason for denial</label>
           <textarea id="denial-reason" placeholder="e.g. The space is reserved for a school event that day. Please choose a different date."></textarea>
@@ -645,24 +422,13 @@
             <button class="btn-confirm-denial" onclick="confirmDeny()">✉ Send Denial Email</button>
           </div>
         </div>
-
-        <!-- Action buttons -->
         <div class="actions" id="action-buttons">
-          <button class="btn btn-approve" id="btn-approve" onclick="handleApprove()">
-            ✅ Approve Reservation
-          </button>
-          <button class="btn btn-deny" id="btn-deny" onclick="showDenialPanel()">
-            ❌ Deny Request
-          </button>
-          <button class="btn btn-conflict" id="btn-conflict-email" style="display:none;" onclick="handleConflictEmail()">
-            ⚠️ Send Conflict Email to Teacher
-          </button>
+          <button class="btn btn-approve" id="btn-approve" onclick="handleApprove()">✅ Approve Reservation</button>
+          <button class="btn btn-deny" id="btn-deny" onclick="showDenialPanel()">❌ Deny Request</button>
+          <button class="btn btn-conflict" id="btn-conflict-email" style="display:none;" onclick="handleConflictEmail()">⚠️ Send Conflict Email to Teacher</button>
         </div>
-
-        <!-- Already-actioned message (shown if already approved/denied) -->
         <div class="actioned-msg" id="actioned-msg" style="display:none;"></div>
       </div>
-
     </div>
 
     <!-- Right: Calendar -->
@@ -675,16 +441,30 @@
       </div>
       <div class="cal-legend" id="cal-legend"></div>
     </div>
-
   </div>
 </div>
 
-<!-- ── Success overlay ─────────────────────────────────── -->
+<!-- ── Success overlay ─────────────────────────────────────── -->
 <div id="success-overlay">
   <div class="success-card">
     <div class="success-icon" id="success-icon"></div>
     <h2 id="success-title"></h2>
     <p id="success-msg"></p>
+  </div>
+</div>
+
+<!-- ── Event popup ─────────────────────────────────────────── -->
+<div id="event-popup">
+  <div class="popup-header">
+    <div class="popup-title" id="popup-title"></div>
+    <button class="popup-close" onclick="hideEventPopup()">×</button>
+  </div>
+  <div class="popup-meta">
+    <div class="popup-space-row">
+      <div class="popup-dot" id="popup-dot"></div>
+      <span id="popup-space"></span>
+    </div>
+    <div id="popup-time"></div>
   </div>
 </div>
 
@@ -698,8 +478,13 @@ const SPACE_COLORS = {
   'es-turf':           '#16A34A',
   'kinder-playground': '#2563EB'
 };
+const SPACE_NAMES = {
+  'cafegym':           'Cafegym',
+  'es-turf':           'ES Turf',
+  'kinder-playground': 'Kinder Playground'
+};
+const REQUEST_COLOR = '#F97316';  // orange — distinct from all three space colors
 
-// Allowed admins — add emails here to grant access
 const ALLOWED_ADMINS = [
   { email: 'kenny.hin@slamnv.org', name: 'Kenny Hin' },
 ];
@@ -710,10 +495,11 @@ let rowData      = null;
 let calendar     = null;
 let rowId        = new URLSearchParams(location.search).get('id');
 let actionDone   = false;
+let allRows      = [];
+let activeTab    = 'review';
 
 // ── Auth ──────────────────────────────────────────────────
 
-// Check for existing session on load
 (function init() {
   try {
     const stored = sessionStorage.getItem('slam_admin');
@@ -731,17 +517,9 @@ function handleLogin(e) {
   e.preventDefault();
   const email    = document.getElementById('login-email').value.trim().toLowerCase();
   const password = document.getElementById('login-password').value;
-
-  const match = ALLOWED_ADMINS.find(a => a.email.toLowerCase() === email);
-  if (!match) {
-    showAuthError('This email is not authorized for admin access.');
-    return;
-  }
-  if (password !== ADMIN_PASSWORD) {
-    showAuthError('Incorrect password. Please try again.');
-    return;
-  }
-
+  const match    = ALLOWED_ADMINS.find(a => a.email.toLowerCase() === email);
+  if (!match)                    { showAuthError('This email is not authorized for admin access.'); return; }
+  if (password !== ADMIN_PASSWORD) { showAuthError('Incorrect password. Please try again.'); return; }
   adminSession = { email: match.email, name: match.name };
   sessionStorage.setItem('slam_admin', JSON.stringify(adminSession));
   hide('auth-screen');
@@ -752,7 +530,6 @@ function handleLogin(e) {
 function showAdminHeader() {
   document.getElementById('header-user').style.display = 'flex';
   document.getElementById('user-name').textContent = adminSession.name;
-  document.getElementById('user-avatar').style.display = 'none';
 }
 
 function signOut() {
@@ -766,40 +543,130 @@ function showAuthError(msg) {
   el.style.display = 'block';
 }
 
-// ── Load request ──────────────────────────────────────────
+// ── Router ────────────────────────────────────────────────
 
 async function onAdminReady() {
   hide('auth-screen');
+  if (rowId) {
+    await loadDetailView();
+  } else {
+    await loadDashboard();
+  }
+}
 
-  if (!rowId) {
-    showError('No Request ID', 'This link is missing a request ID. Check the email and try again.');
+// ── Dashboard ─────────────────────────────────────────────
+
+async function loadDashboard() {
+  setLoadingMsg('Loading requests…');
+  show('loading-screen');
+  try {
+    const url = CONFIG.SCRIPT_URL +
+      '?action=getPendingRows' +
+      '&adminKey='   + encodeURIComponent('slam123') +
+      '&adminEmail=' + encodeURIComponent(adminSession.email);
+    const res  = await fetch(url);
+    const json = await res.json();
+    if (json.error) { showError('Error', json.error); return; }
+    allRows = json.rows || [];
+    hide('loading-screen');
+    renderDashboard();
+    show('dashboard-screen');
+  } catch(err) {
+    showError('Network Error', 'Could not load requests. Check your connection.');
+  }
+}
+
+function renderDashboard() {
+  const pending   = allRows.filter(r => r.status === 'Pending').length;
+  const conflicts = allRows.filter(r => r.status.startsWith('CONFLICT')).length;
+  const approved  = allRows.filter(r => r.status === 'Approved').length;
+  const denied    = allRows.filter(r => r.status === 'Denied').length;
+
+  document.getElementById('dash-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value">${pending}</div></div>
+    <div class="stat-card"><div class="stat-label">Conflicts</div><div class="stat-value red">${conflicts}</div></div>
+    <div class="stat-card"><div class="stat-label">Approved</div><div class="stat-value">${approved}</div></div>
+    <div class="stat-card"><div class="stat-label">Denied</div><div class="stat-value">${denied}</div></div>
+  `;
+
+  const reviewRows = getReviewRows();
+  document.getElementById('tab-review-count').textContent = reviewRows.length;
+  document.getElementById('tab-all-count').textContent    = allRows.length;
+
+  renderList(activeTab === 'review' ? reviewRows : allRows);
+}
+
+function getReviewRows() {
+  const rows = allRows.filter(r => r.status !== 'Approved' && r.status !== 'Denied');
+  // Conflicts first, then by date ascending
+  return rows.sort((a, b) => {
+    const ac = a.status.startsWith('CONFLICT') ? 0 : 1;
+    const bc = b.status.startsWith('CONFLICT') ? 0 : 1;
+    if (ac !== bc) return ac - bc;
+    return a.date.localeCompare(b.date);
+  });
+}
+
+function renderList(rows) {
+  const listEl = document.getElementById('dash-list');
+  if (rows.length === 0) {
+    listEl.innerHTML = `<div class="dash-empty"><div class="dash-empty-icon">✅</div><div>Nothing to review — all caught up!</div></div>`;
     return;
   }
+  listEl.innerHTML = rows.map(r => {
+    const color       = SPACE_COLORS[r.spaceId] || '#888';
+    const isConflict  = r.status.startsWith('CONFLICT');
+    const borderColor = isConflict ? '#C8102E' : '#D1D5DB';
+    const statusCls   = 'status-' + r.status.replace(/\s-\s/g, '-').replace(/\s/g, '-');
+    const time        = formatTime12(r.startTime) + ' – ' + formatTime12(r.endTime);
+    const meta        = formatDateShort(r.date) + ' · ' + time + (r.purpose ? ' · ' + esc(r.purpose) : '');
+    const conflictNote = isConflict && r.conflictNotes
+      ? ` · <span class="req-conflict-note">${esc(r.conflictNotes)}</span>` : '';
+    return `
+      <div class="req-card" style="border-left-color:${borderColor}">
+        <div class="req-card-body">
+          <div class="req-card-top">
+            <span class="req-name">${esc(r.teacherName)}</span>
+            <span class="status-badge ${statusCls}">${esc(r.status)}</span>
+            <span class="req-space">
+              <span class="req-space-dot" style="background:${color}"></span>
+              ${esc(r.spaceName)}
+            </span>
+          </div>
+          <div class="req-meta">${meta}${conflictNote}</div>
+        </div>
+        <a class="btn-review" href="admin.html?id=${esc(r.id)}">Review →</a>
+      </div>`;
+  }).join('');
+}
 
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-review').classList.toggle('active', tab === 'review');
+  document.getElementById('tab-all').classList.toggle('active', tab === 'all');
+  renderList(tab === 'review' ? getReviewRows() : allRows);
+}
+
+// ── Detail view ───────────────────────────────────────────
+
+async function loadDetailView() {
+  setLoadingMsg('Loading request…');
   show('loading-screen');
-
   try {
     const url = CONFIG.SCRIPT_URL +
       '?action=getAdminRow&id=' + encodeURIComponent(rowId) +
       '&adminKey='   + encodeURIComponent('slam123') +
       '&adminEmail=' + encodeURIComponent(adminSession.email);
-
     const res  = await fetch(url);
     const json = await res.json();
-
-    if (json.error) {
-      showError('Error', json.error);
-      return;
-    }
-
+    if (json.error) { showError('Error', json.error); return; }
     rowData = json.row;
     hide('loading-screen');
     renderRequest();
     show('main-content');
     initCalendar();
     loadCalendarEvents();
-
-  } catch (err) {
+  } catch(err) {
     showError('Network Error', 'Could not load the request. Check your connection and try again.');
   }
 }
@@ -807,16 +674,13 @@ async function onAdminReady() {
 // ── Render request details ────────────────────────────────
 
 function renderRequest() {
-  const r = rowData;
-
-  // Status badge
-  const badge = document.getElementById('status-badge');
+  const r          = rowData;
+  const badge      = document.getElementById('status-badge');
   const safeStatus = r.status.replace(/\s-\s/g, '-').replace(/\s/g, '-');
   badge.textContent = r.status;
   badge.className   = 'status-badge status-' + safeStatus;
 
-  // Detail grid
-  const spaceColor = SPACE_COLORS[r.spaceId] || '#888';
+  const spaceColor    = SPACE_COLORS[r.spaceId] || '#888';
   const dateFormatted = formatDateLong(r.date);
   const timeFormatted = formatTime12(r.startTime) + ' – ' + formatTime12(r.endTime);
 
@@ -840,15 +704,12 @@ function renderRequest() {
     <div class="detail-value" style="color:var(--muted);font-size:13px;">${esc(r.teacherEmail)}</div>
   `;
 
-  // Conflict banner
   if (r.status === 'CONFLICT' || r.status === 'CONFLICT - Notified') {
     document.getElementById('conflict-banner').style.display = 'flex';
     document.getElementById('conflict-note-text').textContent = r.conflictNotes || 'Conflicting event detected on this space.';
-    document.getElementById('btn-conflict-email').style.display =
-      r.status === 'CONFLICT' ? 'flex' : 'none';
+    document.getElementById('btn-conflict-email').style.display = r.status === 'CONFLICT' ? 'flex' : 'none';
   }
 
-  // Already-actioned state
   if (r.status === 'Approved' || r.status === 'Denied' || r.status === 'CONFLICT - Notified') {
     showActionedState(r.status);
   }
@@ -857,20 +718,15 @@ function renderRequest() {
 function showActionedState(status) {
   document.getElementById('action-buttons').style.display = 'none';
   document.getElementById('denial-panel').style.display   = 'none';
-  const msg = document.getElementById('actioned-msg');
+  const msg     = document.getElementById('actioned-msg');
   msg.style.display = 'block';
-
   const configs = {
-    'Approved':           { icon: '✅', title: 'Already Approved', text: 'This reservation has been approved and the teacher has been notified.' },
-    'Denied':             { icon: '❌', title: 'Already Denied',   text: 'This reservation has been denied and the teacher has been notified.' },
-    'CONFLICT - Notified':{ icon: '⚠️', title: 'Conflict Notified', text: 'The teacher has been emailed about this conflict.' }
+    'Approved':            { icon: '✅', title: 'Already Approved',  text: 'This reservation has been approved and the teacher has been notified.' },
+    'Denied':              { icon: '❌', title: 'Already Denied',    text: 'This reservation has been denied and the teacher has been notified.' },
+    'CONFLICT - Notified': { icon: '⚠️', title: 'Conflict Notified', text: 'The teacher has been emailed about this conflict.' }
   };
   const c = configs[status] || { icon: 'ℹ️', title: status, text: '' };
-  msg.innerHTML = `
-    <div class="actioned-icon">${c.icon}</div>
-    <h3>${c.title}</h3>
-    <p>${c.text}</p>
-  `;
+  msg.innerHTML = `<div class="actioned-icon">${c.icon}</div><h3>${c.title}</h3><p>${c.text}</p>`;
 }
 
 // ── Approve ───────────────────────────────────────────────
@@ -878,11 +734,9 @@ function showActionedState(status) {
 async function handleApprove() {
   if (actionDone) return;
   setButtonsLoading(true);
-
   try {
     const res  = await apiPost({ action: 'approveRow', id: rowId });
     const json = await res.json();
-
     if (json.error === 'conflict') {
       rowData.status        = 'CONFLICT';
       rowData.conflictNotes = json.conflictNotes;
@@ -891,13 +745,11 @@ async function handleApprove() {
       return;
     }
     if (json.error) { alert('Error: ' + json.error); setButtonsLoading(false); return; }
-
     actionDone = true;
     showSuccess('✅', 'Reservation Approved!', 'The teacher has been emailed a confirmation and the event is on the calendar.');
     updateStatusBadge('Approved');
     showActionedState('Approved');
-
-  } catch (err) {
+  } catch(err) {
     alert('Network error. Please try again.');
     setButtonsLoading(false);
   }
@@ -906,13 +758,13 @@ async function handleApprove() {
 // ── Deny ──────────────────────────────────────────────────
 
 function showDenialPanel() {
-  document.getElementById('denial-panel').style.display = 'block';
+  document.getElementById('denial-panel').style.display   = 'block';
   document.getElementById('action-buttons').style.display = 'none';
   document.getElementById('denial-reason').focus();
 }
 
 function cancelDenial() {
-  document.getElementById('denial-panel').style.display = 'none';
+  document.getElementById('denial-panel').style.display   = 'none';
   document.getElementById('action-buttons').style.display = 'flex';
   document.getElementById('denial-reason').value = '';
 }
@@ -926,23 +778,18 @@ async function confirmDeny() {
     return;
   }
   document.getElementById('denial-reason').style.borderColor = '';
-
   const confirmBtn = document.querySelector('.btn-confirm-denial');
   confirmBtn.textContent = 'Sending…';
   confirmBtn.disabled    = true;
-
   try {
     const res  = await apiPost({ action: 'denyRow', id: rowId, reason });
     const json = await res.json();
-
     if (json.error) { alert('Error: ' + json.error); confirmBtn.textContent = '✉ Send Denial Email'; confirmBtn.disabled = false; return; }
-
     actionDone = true;
     showSuccess('❌', 'Request Denied', 'The teacher has been emailed with your reason.');
     updateStatusBadge('Denied');
     showActionedState('Denied');
-
-  } catch (err) {
+  } catch(err) {
     alert('Network error. Please try again.');
     confirmBtn.textContent = '✉ Send Denial Email';
     confirmBtn.disabled    = false;
@@ -955,19 +802,15 @@ async function handleConflictEmail() {
   if (actionDone) return;
   if (!confirm('Send a conflict notification email to ' + rowData.teacherEmail + '?')) return;
   setButtonsLoading(true);
-
   try {
     const res  = await apiPost({ action: 'sendConflictEmail', id: rowId });
     const json = await res.json();
-
     if (json.error) { alert('Error: ' + json.error); setButtonsLoading(false); return; }
-
     actionDone = true;
     showSuccess('⚠️', 'Conflict Email Sent', 'The teacher has been notified about the scheduling conflict.');
     updateStatusBadge('CONFLICT - Notified');
     showActionedState('CONFLICT - Notified');
-
-  } catch (err) {
+  } catch(err) {
     alert('Network error. Please try again.');
     setButtonsLoading(false);
   }
@@ -979,28 +822,20 @@ function initCalendar() {
   const r          = rowData;
   const targetDate = new Date(r.date + 'T00:00:00');
 
-  // Build legend
-  const legendEl = document.getElementById('cal-legend');
-  legendEl.innerHTML = `
-    <div class="legend-item this-request">
-      <div class="legend-dot this-request"></div> This Request
-    </div>
-  ` + CONFIG.SPACES.map(s =>
-    `<div class="legend-item">
-       <div class="legend-dot" style="background:${SPACE_COLORS[s.id] || s.color}"></div>
-       ${s.label}
-     </div>`
-  ).join('');
+  document.getElementById('cal-legend').innerHTML =
+    `<div class="legend-item this-request"><div class="legend-dot this-request"></div> This Request</div>` +
+    CONFIG.SPACES.map(s =>
+      `<div class="legend-item"><div class="legend-dot" style="background:${SPACE_COLORS[s.id] || s.color}"></div>${s.label}</div>`
+    ).join('');
 
   calendar = new FullCalendar.Calendar(document.getElementById('admin-calendar'), {
-    initialView:    'dayGridMonth',
-    initialDate:    r.date,
-    height:         'auto',
+    initialView:   'dayGridMonth',
+    initialDate:   r.date,
+    height:        'auto',
     headerToolbar: { left: 'prev', center: 'title', right: 'next' },
-    eventDisplay:   'block',
-    dayMaxEvents:   3,
+    eventDisplay:  'block',
+    dayMaxEvents:  3,
 
-    // Highlight the requested date
     dayCellDidMount(info) {
       const d = info.date;
       if (
@@ -1008,9 +843,13 @@ function initCalendar() {
         d.getMonth()    === targetDate.getMonth()    &&
         d.getDate()     === targetDate.getDate()
       ) {
-        info.el.style.background = 'rgba(200,16,46,0.07)';
-        info.el.style.borderRadius = '4px';
+        info.el.style.background    = 'rgba(249,115,22,0.08)';
+        info.el.style.borderRadius  = '4px';
       }
+    },
+
+    eventClick(info) {
+      showEventPopup(info.event, info.jsEvent);
     }
   });
 
@@ -1018,11 +857,9 @@ function initCalendar() {
 }
 
 async function loadCalendarEvents() {
-  // Fetch ±5 weeks around the request date to fill the calendar grid
-  const d     = new Date(rowData.date + 'T00:00:00');
-  const start = new Date(d.getFullYear(), d.getMonth(), 1);
-  const end   = new Date(d.getFullYear(), d.getMonth() + 2, 0);
-
+  const d      = new Date(rowData.date + 'T00:00:00');
+  const start  = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end    = new Date(d.getFullYear(), d.getMonth() + 2, 0);
   const startStr = start.toISOString().split('T')[0];
   const endStr   = end.toISOString().split('T')[0];
 
@@ -1033,7 +870,6 @@ async function loadCalendarEvents() {
       '&endDate='   + endStr   +
       '&adminKey='   + encodeURIComponent('slam123') +
       '&adminEmail=' + encodeURIComponent(adminSession.email);
-
     const res  = await fetch(url);
     const json = await res.json();
 
@@ -1045,26 +881,78 @@ async function loadCalendarEvents() {
           end:             ev.end,
           backgroundColor: SPACE_COLORS[ev.space] || '#888',
           borderColor:     SPACE_COLORS[ev.space] || '#888',
-          textColor:       '#fff'
+          textColor:       '#fff',
+          extendedProps: {
+            space:       ev.space,
+            spaceName:   SPACE_NAMES[ev.space] || ev.space,
+            description: ev.description || '',
+            isRequest:   false
+          }
         });
       });
     }
 
-    // Add the pending request itself as a dashed event
+    // The pending request itself — orange so it stands apart from space colors
     calendar.addEvent({
-      title:           '📌 ' + rowData.teacherName + ' (' + rowData.spaceName + ')',
+      title:           '📌 ' + rowData.teacherName,
       start:           rowData.date + 'T' + rowData.startTime,
       end:             rowData.date + 'T' + rowData.endTime,
-      backgroundColor: 'rgba(200,16,46,0.15)',
-      borderColor:     '#C8102E',
-      textColor:       '#C8102E',
-      display:         'block'
+      backgroundColor: 'rgba(249,115,22,0.15)',
+      borderColor:     REQUEST_COLOR,
+      textColor:       '#C2410C',
+      display:         'block',
+      extendedProps: {
+        space:       rowData.spaceId,
+        spaceName:   rowData.spaceName,
+        description: rowData.purpose,
+        isRequest:   true
+      }
     });
 
-  } catch (err) {
-    // Calendar loads without events — non-fatal
+  } catch(err) {
+    // Non-fatal — calendar still renders, just without events
   }
 }
+
+// ── Event popup ───────────────────────────────────────────
+
+function showEventPopup(event, jsEvent) {
+  const popup     = document.getElementById('event-popup');
+  const props     = event.extendedProps || {};
+  const color     = props.isRequest ? REQUEST_COLOR : (SPACE_COLORS[props.space] || '#888');
+  const start     = event.start ? formatTimeFromDate(event.start) : '';
+  const end       = event.end   ? formatTimeFromDate(event.end)   : '';
+  const title     = event.title.replace(/^📌\s*/, '');
+
+  document.getElementById('popup-title').textContent = title;
+  document.getElementById('popup-dot').style.background = color;
+  document.getElementById('popup-space').textContent    = props.spaceName || '';
+  document.getElementById('popup-time').textContent     = start && end ? start + ' – ' + end : start;
+
+  // Position near cursor, stay within viewport
+  const margin = 12;
+  const pw = 240, ph = 90;
+  let x = jsEvent.clientX + margin;
+  let y = jsEvent.clientY + margin;
+  if (x + pw > window.innerWidth)  x = jsEvent.clientX - pw - margin;
+  if (y + ph > window.innerHeight) y = jsEvent.clientY - ph - margin;
+
+  popup.style.left    = Math.max(8, x) + 'px';
+  popup.style.top     = Math.max(8, y) + 'px';
+  popup.style.display = 'block';
+
+  jsEvent.stopPropagation();
+}
+
+function hideEventPopup() {
+  document.getElementById('event-popup').style.display = 'none';
+}
+
+document.addEventListener('click', () => {
+  if (document.getElementById('event-popup').style.display === 'block') {
+    hideEventPopup();
+  }
+});
 
 // ── Helpers ───────────────────────────────────────────────
 
@@ -1105,7 +993,13 @@ function showError(title, msg) {
   show('error-screen');
 }
 
-function show(id) { document.getElementById(id).style.display = 'flex'; }
+function setLoadingMsg(msg) { document.getElementById('loading-msg').textContent = msg; }
+
+function show(id) {
+  const el    = document.getElementById(id);
+  const block = ['dashboard-screen', 'main-content'];
+  el.style.display = block.includes(id) ? 'block' : 'flex';
+}
 function hide(id) { document.getElementById(id).style.display = 'none'; }
 
 function esc(str) {
@@ -1118,6 +1012,12 @@ function formatDateLong(dateStr) {
   return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+function formatDateShort(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
 function formatTime12(t) {
   if (!t) return '';
   const [hh, mm] = t.split(':');
@@ -1125,6 +1025,13 @@ function formatTime12(t) {
   const ampm = h >= 12 ? 'PM' : 'AM';
   const h12  = h % 12 || 12;
   return h12 + ':' + (mm || '00') + ' ' + ampm;
+}
+
+function formatTimeFromDate(dt) {
+  const h    = dt.getHours();
+  const m    = dt.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return (h % 12 || 12) + ':' + String(m).padStart(2, '0') + ' ' + ampm;
 }
 </script>
 </body>
