@@ -9,9 +9,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js"></script>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
   <script src="js/config.js"></script>
-  <script src="js/auth.js"></script>
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -139,8 +137,43 @@
       margin-bottom: 24px;
       line-height: 1.5;
     }
+    #login-form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    #login-form input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Barlow', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #login-form input:focus { border-color: var(--red); }
+    .btn-login {
+      width: 100%;
+      padding: 12px;
+      background: var(--red);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.15s;
+      margin-top: 4px;
+    }
+    .btn-login:hover { opacity: 0.88; }
     .auth-error {
-      margin-top: 16px;
+      margin-top: 12px;
       background: var(--status-conflict-bg);
       color: var(--status-conflict-fg);
       font-size: 13px;
@@ -524,7 +557,7 @@
       <img id="user-avatar" src="" alt="" />
       <span id="user-name"></span>
     </div>
-    <button class="btn-signout" onclick="Auth.signOut()">Sign Out</button>
+    <button class="btn-signout" onclick="signOut()">Sign Out</button>
   </div>
 </header>
 
@@ -533,8 +566,24 @@
   <div class="auth-card">
     <div class="auth-lock">🔐</div>
     <h2>Admin Access Only</h2>
-    <p>Sign in with your <strong>@slamnv.org</strong> admin account to review reservation requests.</p>
-    <div id="google-signin-btn"></div>
+    <p>Sign in with your admin email and password to review reservation requests.</p>
+    <form id="login-form" onsubmit="handleLogin(event)">
+      <input
+        id="login-email"
+        type="email"
+        placeholder="your@slamnv.org"
+        autocomplete="email"
+        required
+      />
+      <input
+        id="login-password"
+        type="password"
+        placeholder="Password"
+        autocomplete="current-password"
+        required
+      />
+      <button type="submit" class="btn-login">Sign In →</button>
+    </form>
     <div class="auth-error" id="auth-error"></div>
   </div>
 </div>
@@ -650,33 +699,66 @@ const SPACE_COLORS = {
   'kinder-playground': '#2563EB'
 };
 
-const ADMIN_EMAIL = 'kenny.hin@slamnv.org';
+// Allowed admins — add emails here to grant access
+const ALLOWED_ADMINS = [
+  { email: 'kenny.hin@slamnv.org', name: 'Kenny Hin' },
+];
+const ADMIN_PASSWORD = 'slam123';
 
-let rowData    = null;
-let calendar   = null;
-let rowId      = new URLSearchParams(location.search).get('id');
-let actionDone = false;
+let adminSession = null;  // { email, name }
+let rowData      = null;
+let calendar     = null;
+let rowId        = new URLSearchParams(location.search).get('id');
+let actionDone   = false;
 
 // ── Auth ──────────────────────────────────────────────────
 
-Auth.init({
-  onSuccess(user) {
-    if (user.email !== ADMIN_EMAIL) {
-      showAuthError('Access denied. This page is for administrators only.');
+// Check for existing session on load
+(function init() {
+  try {
+    const stored = sessionStorage.getItem('slam_admin');
+    if (stored) {
+      adminSession = JSON.parse(stored);
+      showAdminHeader();
+      onAdminReady();
       return;
     }
-    document.getElementById('header-user').style.display = 'flex';
-    document.getElementById('user-name').textContent = user.given_name || user.name;
-    document.getElementById('user-avatar').src = user.picture || '';
-    onAdminReady();
-  },
-  onNeedSignIn() {
-    show('auth-screen');
-  },
-  onWrongDomain(email) {
-    showAuthError('Only @slamnv.org accounts are allowed. You signed in as: ' + email);
+  } catch(e) {}
+  show('auth-screen');
+})();
+
+function handleLogin(e) {
+  e.preventDefault();
+  const email    = document.getElementById('login-email').value.trim().toLowerCase();
+  const password = document.getElementById('login-password').value;
+
+  const match = ALLOWED_ADMINS.find(a => a.email.toLowerCase() === email);
+  if (!match) {
+    showAuthError('This email is not authorized for admin access.');
+    return;
   }
-});
+  if (password !== ADMIN_PASSWORD) {
+    showAuthError('Incorrect password. Please try again.');
+    return;
+  }
+
+  adminSession = { email: match.email, name: match.name };
+  sessionStorage.setItem('slam_admin', JSON.stringify(adminSession));
+  hide('auth-screen');
+  showAdminHeader();
+  onAdminReady();
+}
+
+function showAdminHeader() {
+  document.getElementById('header-user').style.display = 'flex';
+  document.getElementById('user-name').textContent = adminSession.name;
+  document.getElementById('user-avatar').style.display = 'none';
+}
+
+function signOut() {
+  sessionStorage.removeItem('slam_admin');
+  location.reload();
+}
 
 function showAuthError(msg) {
   const el = document.getElementById('auth-error');
@@ -699,7 +781,8 @@ async function onAdminReady() {
   try {
     const url = CONFIG.SCRIPT_URL +
       '?action=getAdminRow&id=' + encodeURIComponent(rowId) +
-      '&token=' + encodeURIComponent(Auth.getToken());
+      '&adminKey='   + encodeURIComponent('slam123') +
+      '&adminEmail=' + encodeURIComponent(adminSession.email);
 
     const res  = await fetch(url);
     const json = await res.json();
@@ -948,7 +1031,8 @@ async function loadCalendarEvents() {
       '?action=getEvents' +
       '&startDate=' + startStr +
       '&endDate='   + endStr   +
-      '&token='     + encodeURIComponent(Auth.getToken());
+      '&adminKey='   + encodeURIComponent('slam123') +
+      '&adminEmail=' + encodeURIComponent(adminSession.email);
 
     const res  = await fetch(url);
     const json = await res.json();
@@ -988,7 +1072,7 @@ function apiPost(body) {
   return fetch(CONFIG.SCRIPT_URL, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ ...body, token: Auth.getToken() })
+    body:    JSON.stringify({ ...body, adminKey: 'slam123', adminEmail: adminSession.email })
   });
 }
 

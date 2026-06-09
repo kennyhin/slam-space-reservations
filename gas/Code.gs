@@ -20,6 +20,10 @@ const ADMIN_EMAIL    = 'kenny.hin@slamnv.org';
 const DAYS_AHEAD     = 90;
 const ADMIN_PAGE_URL = 'https://kennyhin.github.io/slam-space-reservations/admin.html';
 
+// Admin password auth (used by admin.html — no Google token required for admin routes)
+const ADMIN_KEY    = 'slam123';
+const ADMIN_EMAILS = ['kenny.hin@slamnv.org'];  // Add more emails here to grant access
+
 // Column index map (1-based)
 const COL = {
   TIMESTAMP:       1,
@@ -315,13 +319,12 @@ function getEvents(e) {
 // ============================================================
 
 function getAdminRow(e) {
-  var token = (e && e.parameter && e.parameter.token) ? String(e.parameter.token) : '';
-  var rowId = (e && e.parameter && e.parameter.id)    ? String(e.parameter.id)    : '';
+  var key   = (e && e.parameter && e.parameter.adminKey)   ? String(e.parameter.adminKey)   : '';
+  var email = (e && e.parameter && e.parameter.adminEmail) ? String(e.parameter.adminEmail) : '';
+  var rowId = (e && e.parameter && e.parameter.id)         ? String(e.parameter.id)         : '';
 
-  var auth = verifyToken(token);
-  if (!auth.valid)          return jsonResp({ error: 'Unauthorized' });
-  if (!isAdmin(auth.email)) return jsonResp({ error: 'Admin access required' });
-  if (!rowId)               return jsonResp({ error: 'Missing row ID' });
+  if (!verifyAdminKey(key, email)) return jsonResp({ error: 'Unauthorized' });
+  if (!rowId)                      return jsonResp({ error: 'Missing row ID' });
 
   var sheet = getSheet();
   if (!sheet) return jsonResp({ error: 'Sheet not found' });
@@ -337,10 +340,8 @@ function getAdminRow(e) {
 // ============================================================
 
 function approveRowApi(data) {
-  var auth = verifyToken(data.token);
-  if (!auth.valid)          return jsonResp({ error: 'Unauthorized' });
-  if (!isAdmin(auth.email)) return jsonResp({ error: 'Admin access required' });
-  if (!data.id)             return jsonResp({ error: 'Missing row ID' });
+  if (!verifyAdminKey(data.adminKey, data.adminEmail)) return jsonResp({ error: 'Unauthorized' });
+  if (!data.id) return jsonResp({ error: 'Missing row ID' });
 
   var sheet = getSheet();
   if (!sheet) return jsonResp({ error: 'Sheet not found' });
@@ -411,10 +412,8 @@ function approveRowApi(data) {
 // ============================================================
 
 function denyRowApi(data) {
-  var auth = verifyToken(data.token);
-  if (!auth.valid)          return jsonResp({ error: 'Unauthorized' });
-  if (!isAdmin(auth.email)) return jsonResp({ error: 'Admin access required' });
-  if (!data.id)             return jsonResp({ error: 'Missing row ID' });
+  if (!verifyAdminKey(data.adminKey, data.adminEmail)) return jsonResp({ error: 'Unauthorized' });
+  if (!data.id) return jsonResp({ error: 'Missing row ID' });
 
   var sheet = getSheet();
   if (!sheet) return jsonResp({ error: 'Sheet not found' });
@@ -458,10 +457,8 @@ function denyRowApi(data) {
 // ============================================================
 
 function sendConflictEmailApi(data) {
-  var auth = verifyToken(data.token);
-  if (!auth.valid)          return jsonResp({ error: 'Unauthorized' });
-  if (!isAdmin(auth.email)) return jsonResp({ error: 'Admin access required' });
-  if (!data.id)             return jsonResp({ error: 'Missing row ID' });
+  if (!verifyAdminKey(data.adminKey, data.adminEmail)) return jsonResp({ error: 'Unauthorized' });
+  if (!data.id) return jsonResp({ error: 'Missing row ID' });
 
   var sheet = getSheet();
   if (!sheet) return jsonResp({ error: 'Sheet not found' });
@@ -500,6 +497,12 @@ function sendConflictEmailApi(data) {
 
 function isAdmin(email) {
   return email === ADMIN_EMAIL;
+}
+
+function verifyAdminKey(key, email) {
+  if (!key || !email) return false;
+  if (key !== ADMIN_KEY) return false;
+  return ADMIN_EMAILS.indexOf(email) !== -1;
 }
 
 function verifyToken(token) {
