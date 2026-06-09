@@ -123,9 +123,9 @@ function doPost(e) {
       new Date(), auth.email, data.teacherName, data.gradeLevel, data.purpose,
       data.space, entry.date, entry.startTime, entry.endTime,
       conflict ? 'CONFLICT' : 'Pending',
-      false,           // Approve checkbox
-      conflict || '',  // Conflict Notes
-      false            // Send Conflict Email checkbox
+      false,               // Approve checkbox
+      conflict || '',      // Conflict Notes
+      conflict ? false : '' // Send Conflict Email — only written for conflict rows
     ]);
 
     // Always insert the Approve checkbox
