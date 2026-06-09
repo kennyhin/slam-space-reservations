@@ -1,0 +1,1047 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Review — SLAM Reservations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:    #C8102E;
+      --red-dk: #9B0020;
+      --green:  #A8D400;
+      --gray:   #888B8D;
+      --bg:     #F3F4F6;
+      --card:   #FFFFFF;
+      --border: #E5E7EB;
+      --text:   #111827;
+      --muted:  #6B7280;
+
+      --status-pending-bg:    #FEF9C3; --status-pending-fg:    #92400E;
+      --status-conflict-bg:   #FEE2E2; --status-conflict-fg:   #991B1B;
+      --status-approved-bg:   #DCFCE7; --status-approved-fg:   #166534;
+      --status-denied-bg:     #E5E7EB; --status-denied-fg:     #374151;
+      --status-notified-bg:   #FECACA; --status-notified-fg:   #7F1D1D;
+    }
+
+    body {
+      font-family: 'Barlow', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ───────────────────────────────────────── */
+    .header {
+      background: #0B0B0B;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .header-logo {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-weight: 800;
+      font-size: 18px;
+      color: #fff;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .header-logo span { color: var(--red); }
+    .header-badge {
+      background: var(--red);
+      color: #fff;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #ccc;
+      font-size: 13px;
+    }
+    .user-chip img {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid #333;
+    }
+    .btn-signout {
+      background: none;
+      border: 1px solid #444;
+      color: #aaa;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Barlow', sans-serif;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-signout:hover { border-color: #888; color: #fff; }
+
+    /* ── Auth screen ──────────────────────────────────── */
+    #auth-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 50px);
+      gap: 20px;
+      padding: 40px 20px;
+    }
+    .auth-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 360px;
+      width: 100%;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .auth-lock {
+      font-size: 40px;
+      margin-bottom: 16px;
+    }
+    .auth-card h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .auth-card p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .auth-error {
+      margin-top: 16px;
+      background: var(--status-conflict-bg);
+      color: var(--status-conflict-fg);
+      font-size: 13px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      display: none;
+    }
+
+    /* ── Loading ──────────────────────────────────────── */
+    #loading-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 50px);
+      gap: 16px;
+      color: var(--muted);
+    }
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid var(--border);
+      border-top-color: var(--red);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Main content ─────────────────────────────────── */
+    #main-content {
+      display: none;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 20px 60px;
+    }
+
+    .page-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 20px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+    @media (max-width: 780px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Cards ────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card-body { padding: 20px; }
+
+    /* ── Status badge ─────────────────────────────────── */
+    .status-badge {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .status-Pending          { background: var(--status-pending-bg);   color: var(--status-pending-fg); }
+    .status-CONFLICT         { background: var(--status-conflict-bg);  color: var(--status-conflict-fg); }
+    .status-Approved         { background: var(--status-approved-bg);  color: var(--status-approved-fg); }
+    .status-Denied           { background: var(--status-denied-bg);    color: var(--status-denied-fg); }
+    .status-CONFLICT-Notified{ background: var(--status-notified-bg);  color: var(--status-notified-fg); }
+
+    /* ── Request detail rows ──────────────────────────── */
+    .detail-grid {
+      display: grid;
+      grid-template-columns: 110px 1fr;
+      gap: 0;
+    }
+    .detail-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+    }
+    .detail-value {
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+    }
+    .detail-label:last-of-type,
+    .detail-value:last-of-type { border-bottom: none; }
+    .space-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 7px;
+      flex-shrink: 0;
+    }
+
+    /* ── Conflict banner ──────────────────────────────── */
+    .conflict-banner {
+      margin: 0 20px 0;
+      background: #FFF1F2;
+      border: 1px solid #FECDD3;
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .conflict-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .conflict-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #991B1B;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 4px;
+    }
+    .conflict-note {
+      font-size: 13px;
+      color: #B91C1C;
+      line-height: 1.4;
+    }
+
+    /* ── Actions ──────────────────────────────────────── */
+    .actions { padding: 16px 20px 20px; display: flex; flex-direction: column; gap: 10px; }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 13px 20px;
+      border-radius: 8px;
+      border: none;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:hover  { opacity: 0.88; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .btn-approve  { background: #16A34A; color: #fff; }
+    .btn-deny     { background: #fff; color: #374151; border: 1.5px solid var(--border); }
+    .btn-deny:hover { border-color: #9CA3AF; }
+    .btn-conflict { background: #FEF3C7; color: #92400E; border: 1.5px solid #FDE68A; }
+    .btn-conflict:hover { border-color: #F59E0B; }
+
+    /* ── Denial panel ─────────────────────────────────── */
+    #denial-panel {
+      display: none;
+      margin: 0 20px 16px;
+      background: #F9FAFB;
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    #denial-panel label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    #denial-reason {
+      width: 100%;
+      min-height: 90px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: 'Barlow', sans-serif;
+      font-size: 14px;
+      color: var(--text);
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    #denial-reason:focus { border-color: var(--red); }
+    .denial-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-cancel-denial {
+      flex: 1;
+      padding: 10px;
+      background: none;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s;
+    }
+    .btn-cancel-denial:hover { border-color: #9CA3AF; }
+    .btn-confirm-denial {
+      flex: 2;
+      padding: 10px;
+      background: var(--red);
+      border: none;
+      border-radius: 6px;
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #fff;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-confirm-denial:hover { opacity: 0.88; }
+
+    /* ── Already-actioned state ───────────────────────── */
+    .actioned-msg {
+      padding: 20px;
+      text-align: center;
+    }
+    .actioned-icon { font-size: 36px; margin-bottom: 10px; }
+    .actioned-msg h3 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .actioned-msg p { font-size: 13px; color: var(--muted); }
+
+    /* ── Success overlay ──────────────────────────────── */
+    #success-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    #success-overlay.show { display: flex; }
+    .success-card {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 40px 32px;
+      text-align: center;
+      max-width: 320px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .success-icon { font-size: 48px; margin-bottom: 16px; }
+    .success-card h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .success-card p { font-size: 14px; color: var(--muted); line-height: 1.5; }
+
+    /* ── Calendar ─────────────────────────────────────── */
+    .calendar-card { overflow: visible; }
+    .calendar-body { padding: 16px; }
+    #admin-calendar .fc-toolbar-title {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    #admin-calendar .fc-button {
+      background: var(--red) !important;
+      border-color: var(--red) !important;
+      font-size: 12px !important;
+      padding: 4px 8px !important;
+    }
+    #admin-calendar .fc-daygrid-event {
+      font-size: 11px;
+      border-radius: 3px;
+    }
+    #admin-calendar .fc-highlight { background: rgba(200,16,46,0.12) !important; }
+
+    /* Calendar legend */
+    .cal-legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 16px;
+      padding: 10px 16px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .legend-item.this-request {
+      color: var(--red);
+      font-weight: 600;
+    }
+    .legend-dot.this-request {
+      background: var(--red);
+      box-shadow: 0 0 0 2px rgba(200,16,46,0.3);
+    }
+
+    /* ── Error screen ─────────────────────────────────── */
+    #error-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: calc(100vh - 50px);
+      text-align: center;
+      padding: 40px 20px;
+      gap: 12px;
+    }
+    #error-screen h2 {
+      font-family: 'Barlow Condensed', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+    }
+    #error-screen p { color: var(--muted); font-size: 14px; }
+  </style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────── -->
+<header class="header">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div class="header-logo">SLAM <span>Reservations</span></div>
+    <div class="header-badge">Admin</div>
+  </div>
+  <div class="header-right" id="header-user" style="display:none;">
+    <div class="user-chip">
+      <img id="user-avatar" src="" alt="" />
+      <span id="user-name"></span>
+    </div>
+    <button class="btn-signout" onclick="Auth.signOut()">Sign Out</button>
+  </div>
+</header>
+
+<!-- ── Auth screen ─────────────────────────────────────── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-lock">🔐</div>
+    <h2>Admin Access Only</h2>
+    <p>Sign in with your <strong>@slamnv.org</strong> admin account to review reservation requests.</p>
+    <div id="google-signin-btn"></div>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- ── Loading ─────────────────────────────────────────── -->
+<div id="loading-screen">
+  <div class="spinner"></div>
+  <div style="font-size:14px;">Loading request…</div>
+</div>
+
+<!-- ── Error screen ────────────────────────────────────── -->
+<div id="error-screen">
+  <div style="font-size:48px;">😕</div>
+  <h2 id="error-title">Request Not Found</h2>
+  <p id="error-msg">This approval link may be expired or invalid.</p>
+</div>
+
+<!-- ── Main content ────────────────────────────────────── -->
+<div id="main-content">
+  <div class="page-title">Reservation Review</div>
+
+  <div class="layout">
+
+    <!-- Left: Request + Actions -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Request details card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Request Details</div>
+          <div class="status-badge" id="status-badge"></div>
+        </div>
+        <div class="card-body" style="padding:0 20px;">
+          <div class="detail-grid" id="detail-grid"></div>
+        </div>
+      </div>
+
+      <!-- Conflict banner (shown only for conflicts) -->
+      <div class="conflict-banner" id="conflict-banner" style="display:none;">
+        <div class="conflict-icon">⚠️</div>
+        <div>
+          <div class="conflict-title">Scheduling Conflict Detected</div>
+          <div class="conflict-note" id="conflict-note-text"></div>
+        </div>
+      </div>
+
+      <!-- Actions card -->
+      <div class="card" id="actions-card">
+        <div class="card-header">
+          <div class="card-title">Actions</div>
+        </div>
+
+        <!-- Denial reason panel -->
+        <div id="denial-panel">
+          <label for="denial-reason">Reason for denial</label>
+          <textarea id="denial-reason" placeholder="e.g. The space is reserved for a school event that day. Please choose a different date."></textarea>
+          <div class="denial-actions">
+            <button class="btn-cancel-denial" onclick="cancelDenial()">Cancel</button>
+            <button class="btn-confirm-denial" onclick="confirmDeny()">✉ Send Denial Email</button>
+          </div>
+        </div>
+
+        <!-- Action buttons -->
+        <div class="actions" id="action-buttons">
+          <button class="btn btn-approve" id="btn-approve" onclick="handleApprove()">
+            ✅ Approve Reservation
+          </button>
+          <button class="btn btn-deny" id="btn-deny" onclick="showDenialPanel()">
+            ❌ Deny Request
+          </button>
+          <button class="btn btn-conflict" id="btn-conflict-email" style="display:none;" onclick="handleConflictEmail()">
+            ⚠️ Send Conflict Email to Teacher
+          </button>
+        </div>
+
+        <!-- Already-actioned message (shown if already approved/denied) -->
+        <div class="actioned-msg" id="actioned-msg" style="display:none;"></div>
+      </div>
+
+    </div>
+
+    <!-- Right: Calendar -->
+    <div class="card calendar-card">
+      <div class="card-header">
+        <div class="card-title">Space Calendar</div>
+      </div>
+      <div class="calendar-body">
+        <div id="admin-calendar"></div>
+      </div>
+      <div class="cal-legend" id="cal-legend"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Success overlay ─────────────────────────────────── -->
+<div id="success-overlay">
+  <div class="success-card">
+    <div class="success-icon" id="success-icon"></div>
+    <h2 id="success-title"></h2>
+    <p id="success-msg"></p>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// Admin page logic
+// ============================================================
+
+const SPACE_COLORS = {
+  'cafegym':           '#C8102E',
+  'es-turf':           '#16A34A',
+  'kinder-playground': '#2563EB'
+};
+
+const ADMIN_EMAIL = 'kenny.hin@slamnv.org';
+
+let rowData    = null;
+let calendar   = null;
+let rowId      = new URLSearchParams(location.search).get('id');
+let actionDone = false;
+
+// ── Auth ──────────────────────────────────────────────────
+
+Auth.init({
+  onSuccess(user) {
+    if (user.email !== ADMIN_EMAIL) {
+      showAuthError('Access denied. This page is for administrators only.');
+      return;
+    }
+    document.getElementById('header-user').style.display = 'flex';
+    document.getElementById('user-name').textContent = user.given_name || user.name;
+    document.getElementById('user-avatar').src = user.picture || '';
+    onAdminReady();
+  },
+  onNeedSignIn() {
+    show('auth-screen');
+  },
+  onWrongDomain(email) {
+    showAuthError('Only @slamnv.org accounts are allowed. You signed in as: ' + email);
+  }
+});
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+// ── Load request ──────────────────────────────────────────
+
+async function onAdminReady() {
+  hide('auth-screen');
+
+  if (!rowId) {
+    showError('No Request ID', 'This link is missing a request ID. Check the email and try again.');
+    return;
+  }
+
+  show('loading-screen');
+
+  try {
+    const url = CONFIG.SCRIPT_URL +
+      '?action=getAdminRow&id=' + encodeURIComponent(rowId) +
+      '&token=' + encodeURIComponent(Auth.getToken());
+
+    const res  = await fetch(url);
+    const json = await res.json();
+
+    if (json.error) {
+      showError('Error', json.error);
+      return;
+    }
+
+    rowData = json.row;
+    hide('loading-screen');
+    renderRequest();
+    show('main-content');
+    initCalendar();
+    loadCalendarEvents();
+
+  } catch (err) {
+    showError('Network Error', 'Could not load the request. Check your connection and try again.');
+  }
+}
+
+// ── Render request details ────────────────────────────────
+
+function renderRequest() {
+  const r = rowData;
+
+  // Status badge
+  const badge = document.getElementById('status-badge');
+  const safeStatus = r.status.replace(/\s-\s/g, '-').replace(/\s/g, '-');
+  badge.textContent = r.status;
+  badge.className   = 'status-badge status-' + safeStatus;
+
+  // Detail grid
+  const spaceColor = SPACE_COLORS[r.spaceId] || '#888';
+  const dateFormatted = formatDateLong(r.date);
+  const timeFormatted = formatTime12(r.startTime) + ' – ' + formatTime12(r.endTime);
+
+  document.getElementById('detail-grid').innerHTML = `
+    <div class="detail-label">Teacher</div>
+    <div class="detail-value">${esc(r.teacherName)}</div>
+    <div class="detail-label">Grade</div>
+    <div class="detail-value">${esc(r.gradeLevel)}</div>
+    <div class="detail-label">Purpose</div>
+    <div class="detail-value">${esc(r.purpose)}</div>
+    <div class="detail-label">Space</div>
+    <div class="detail-value">
+      <span class="space-dot" style="background:${spaceColor}"></span>
+      ${esc(r.spaceName)}
+    </div>
+    <div class="detail-label">Date</div>
+    <div class="detail-value">${dateFormatted}</div>
+    <div class="detail-label">Time</div>
+    <div class="detail-value">${timeFormatted}</div>
+    <div class="detail-label">Submitted By</div>
+    <div class="detail-value" style="color:var(--muted);font-size:13px;">${esc(r.teacherEmail)}</div>
+  `;
+
+  // Conflict banner
+  if (r.status === 'CONFLICT' || r.status === 'CONFLICT - Notified') {
+    document.getElementById('conflict-banner').style.display = 'flex';
+    document.getElementById('conflict-note-text').textContent = r.conflictNotes || 'Conflicting event detected on this space.';
+    document.getElementById('btn-conflict-email').style.display =
+      r.status === 'CONFLICT' ? 'flex' : 'none';
+  }
+
+  // Already-actioned state
+  if (r.status === 'Approved' || r.status === 'Denied' || r.status === 'CONFLICT - Notified') {
+    showActionedState(r.status);
+  }
+}
+
+function showActionedState(status) {
+  document.getElementById('action-buttons').style.display = 'none';
+  document.getElementById('denial-panel').style.display   = 'none';
+  const msg = document.getElementById('actioned-msg');
+  msg.style.display = 'block';
+
+  const configs = {
+    'Approved':           { icon: '✅', title: 'Already Approved', text: 'This reservation has been approved and the teacher has been notified.' },
+    'Denied':             { icon: '❌', title: 'Already Denied',   text: 'This reservation has been denied and the teacher has been notified.' },
+    'CONFLICT - Notified':{ icon: '⚠️', title: 'Conflict Notified', text: 'The teacher has been emailed about this conflict.' }
+  };
+  const c = configs[status] || { icon: 'ℹ️', title: status, text: '' };
+  msg.innerHTML = `
+    <div class="actioned-icon">${c.icon}</div>
+    <h3>${c.title}</h3>
+    <p>${c.text}</p>
+  `;
+}
+
+// ── Approve ───────────────────────────────────────────────
+
+async function handleApprove() {
+  if (actionDone) return;
+  setButtonsLoading(true);
+
+  try {
+    const res  = await apiPost({ action: 'approveRow', id: rowId });
+    const json = await res.json();
+
+    if (json.error === 'conflict') {
+      rowData.status        = 'CONFLICT';
+      rowData.conflictNotes = json.conflictNotes;
+      renderRequest();
+      setButtonsLoading(false);
+      return;
+    }
+    if (json.error) { alert('Error: ' + json.error); setButtonsLoading(false); return; }
+
+    actionDone = true;
+    showSuccess('✅', 'Reservation Approved!', 'The teacher has been emailed a confirmation and the event is on the calendar.');
+    updateStatusBadge('Approved');
+    showActionedState('Approved');
+
+  } catch (err) {
+    alert('Network error. Please try again.');
+    setButtonsLoading(false);
+  }
+}
+
+// ── Deny ──────────────────────────────────────────────────
+
+function showDenialPanel() {
+  document.getElementById('denial-panel').style.display = 'block';
+  document.getElementById('action-buttons').style.display = 'none';
+  document.getElementById('denial-reason').focus();
+}
+
+function cancelDenial() {
+  document.getElementById('denial-panel').style.display = 'none';
+  document.getElementById('action-buttons').style.display = 'flex';
+  document.getElementById('denial-reason').value = '';
+}
+
+async function confirmDeny() {
+  if (actionDone) return;
+  const reason = document.getElementById('denial-reason').value.trim();
+  if (!reason) {
+    document.getElementById('denial-reason').focus();
+    document.getElementById('denial-reason').style.borderColor = 'var(--red)';
+    return;
+  }
+  document.getElementById('denial-reason').style.borderColor = '';
+
+  const confirmBtn = document.querySelector('.btn-confirm-denial');
+  confirmBtn.textContent = 'Sending…';
+  confirmBtn.disabled    = true;
+
+  try {
+    const res  = await apiPost({ action: 'denyRow', id: rowId, reason });
+    const json = await res.json();
+
+    if (json.error) { alert('Error: ' + json.error); confirmBtn.textContent = '✉ Send Denial Email'; confirmBtn.disabled = false; return; }
+
+    actionDone = true;
+    showSuccess('❌', 'Request Denied', 'The teacher has been emailed with your reason.');
+    updateStatusBadge('Denied');
+    showActionedState('Denied');
+
+  } catch (err) {
+    alert('Network error. Please try again.');
+    confirmBtn.textContent = '✉ Send Denial Email';
+    confirmBtn.disabled    = false;
+  }
+}
+
+// ── Conflict email ────────────────────────────────────────
+
+async function handleConflictEmail() {
+  if (actionDone) return;
+  if (!confirm('Send a conflict notification email to ' + rowData.teacherEmail + '?')) return;
+  setButtonsLoading(true);
+
+  try {
+    const res  = await apiPost({ action: 'sendConflictEmail', id: rowId });
+    const json = await res.json();
+
+    if (json.error) { alert('Error: ' + json.error); setButtonsLoading(false); return; }
+
+    actionDone = true;
+    showSuccess('⚠️', 'Conflict Email Sent', 'The teacher has been notified about the scheduling conflict.');
+    updateStatusBadge('CONFLICT - Notified');
+    showActionedState('CONFLICT - Notified');
+
+  } catch (err) {
+    alert('Network error. Please try again.');
+    setButtonsLoading(false);
+  }
+}
+
+// ── Calendar ──────────────────────────────────────────────
+
+function initCalendar() {
+  const r          = rowData;
+  const targetDate = new Date(r.date + 'T00:00:00');
+
+  // Build legend
+  const legendEl = document.getElementById('cal-legend');
+  legendEl.innerHTML = `
+    <div class="legend-item this-request">
+      <div class="legend-dot this-request"></div> This Request
+    </div>
+  ` + CONFIG.SPACES.map(s =>
+    `<div class="legend-item">
+       <div class="legend-dot" style="background:${SPACE_COLORS[s.id] || s.color}"></div>
+       ${s.label}
+     </div>`
+  ).join('');
+
+  calendar = new FullCalendar.Calendar(document.getElementById('admin-calendar'), {
+    initialView:    'dayGridMonth',
+    initialDate:    r.date,
+    height:         'auto',
+    headerToolbar: { left: 'prev', center: 'title', right: 'next' },
+    eventDisplay:   'block',
+    dayMaxEvents:   3,
+
+    // Highlight the requested date
+    dayCellDidMount(info) {
+      const d = info.date;
+      if (
+        d.getFullYear() === targetDate.getFullYear() &&
+        d.getMonth()    === targetDate.getMonth()    &&
+        d.getDate()     === targetDate.getDate()
+      ) {
+        info.el.style.background = 'rgba(200,16,46,0.07)';
+        info.el.style.borderRadius = '4px';
+      }
+    }
+  });
+
+  calendar.render();
+}
+
+async function loadCalendarEvents() {
+  // Fetch ±5 weeks around the request date to fill the calendar grid
+  const d     = new Date(rowData.date + 'T00:00:00');
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end   = new Date(d.getFullYear(), d.getMonth() + 2, 0);
+
+  const startStr = start.toISOString().split('T')[0];
+  const endStr   = end.toISOString().split('T')[0];
+
+  try {
+    const url = CONFIG.SCRIPT_URL +
+      '?action=getEvents' +
+      '&startDate=' + startStr +
+      '&endDate='   + endStr   +
+      '&token='     + encodeURIComponent(Auth.getToken());
+
+    const res  = await fetch(url);
+    const json = await res.json();
+
+    if (json.events) {
+      json.events.forEach(ev => {
+        calendar.addEvent({
+          title:           ev.title,
+          start:           ev.start,
+          end:             ev.end,
+          backgroundColor: SPACE_COLORS[ev.space] || '#888',
+          borderColor:     SPACE_COLORS[ev.space] || '#888',
+          textColor:       '#fff'
+        });
+      });
+    }
+
+    // Add the pending request itself as a dashed event
+    calendar.addEvent({
+      title:           '📌 ' + rowData.teacherName + ' (' + rowData.spaceName + ')',
+      start:           rowData.date + 'T' + rowData.startTime,
+      end:             rowData.date + 'T' + rowData.endTime,
+      backgroundColor: 'rgba(200,16,46,0.15)',
+      borderColor:     '#C8102E',
+      textColor:       '#C8102E',
+      display:         'block'
+    });
+
+  } catch (err) {
+    // Calendar loads without events — non-fatal
+  }
+}
+
+// ── Helpers ───────────────────────────────────────────────
+
+function apiPost(body) {
+  return fetch(CONFIG.SCRIPT_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ ...body, token: Auth.getToken() })
+  });
+}
+
+function setButtonsLoading(loading) {
+  ['btn-approve', 'btn-deny', 'btn-conflict-email'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = loading;
+  });
+}
+
+function updateStatusBadge(status) {
+  const badge = document.getElementById('status-badge');
+  badge.textContent = status;
+  badge.className   = 'status-badge status-' + status.replace(/\s-\s/g, '-').replace(/\s/g, '-');
+}
+
+function showSuccess(icon, title, msg) {
+  document.getElementById('success-icon').textContent  = icon;
+  document.getElementById('success-title').textContent = title;
+  document.getElementById('success-msg').textContent   = msg;
+  document.getElementById('success-overlay').classList.add('show');
+  setTimeout(() => document.getElementById('success-overlay').classList.remove('show'), 3500);
+}
+
+function showError(title, msg) {
+  hide('loading-screen');
+  hide('auth-screen');
+  document.getElementById('error-title').textContent = title;
+  document.getElementById('error-msg').textContent   = msg;
+  show('error-screen');
+}
+
+function show(id) { document.getElementById(id).style.display = 'flex'; }
+function hide(id) { document.getElementById(id).style.display = 'none'; }
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatDateLong(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function formatTime12(t) {
+  if (!t) return '';
+  const [hh, mm] = t.split(':');
+  const h    = parseInt(hh);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12  = h % 12 || 12;
+  return h12 + ':' + (mm || '00') + ' ' + ampm;
+}
+</script>
+</body>
+</html>

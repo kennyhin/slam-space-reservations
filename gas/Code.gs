@@ -14,30 +14,32 @@ const SPACE_LABELS = {
   'kinder-playground': 'Kinder Playground'
 };
 
-const SHEET_NAME   = 'Reservations';
+const SHEET_NAME     = 'Reservations';
 const ALLOWED_DOMAIN = 'slamnv.org';
-const ADMIN_EMAIL  = 'kenny.hin@slamnv.org';
-const DAYS_AHEAD   = 90;
+const ADMIN_EMAIL    = 'kenny.hin@slamnv.org';
+const DAYS_AHEAD     = 90;
+const ADMIN_PAGE_URL = 'https://kennyhin.github.io/slam-space-reservations/admin.html';
 
 // Column index map (1-based)
 const COL = {
-  TIMESTAMP:        1,
-  SUBMITTED_BY:     2,
-  TEACHER_NAME:     3,
-  GRADE_LEVEL:      4,
-  PURPOSE:          5,
-  SPACE:            6,
-  DATE:             7,
-  START_TIME:       8,
-  END_TIME:         9,
-  STATUS:           10,
-  APPROVE:          11,
-  CONFLICT_NOTES:   12,
-  NOTIFY_CONFLICT:  13
+  TIMESTAMP:       1,
+  SUBMITTED_BY:    2,
+  TEACHER_NAME:    3,
+  GRADE_LEVEL:     4,
+  PURPOSE:         5,
+  SPACE:           6,
+  DATE:            7,
+  START_TIME:      8,
+  END_TIME:        9,
+  STATUS:          10,
+  APPROVE:         11,
+  CONFLICT_NOTES:  12,
+  NOTIFY_CONFLICT: 13,
+  ROW_ID:          14
 };
 
 // ============================================================
-// DATE/TIME HELPERS
+// DATE / TIME HELPERS
 // ============================================================
 
 function formatDateLong(dateStr) {
@@ -52,12 +54,16 @@ function formatTime12(timeStr) {
   if (!timeStr) return '';
   try {
     var parts = timeStr.split(':');
-    var h = parseInt(parts[0]);
-    var m = (parts[1] || '00').substring(0, 2);
+    var h    = parseInt(parts[0]);
+    var m    = (parts[1] || '00').substring(0, 2);
     var ampm = h >= 12 ? 'PM' : 'AM';
-    var h12 = h % 12 || 12;
+    var h12  = h % 12 || 12;
     return h12 + ':' + m + ' ' + ampm;
   } catch (e) { return timeStr; }
+}
+
+function generateRowId() {
+  return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
 // ============================================================
@@ -67,7 +73,8 @@ function formatTime12(timeStr) {
 function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || '';
-    if (action === 'getEvents') return getEvents(e);
+    if (action === 'getEvents')   return getEvents(e);
+    if (action === 'getAdminRow') return getAdminRow(e);
     return jsonResp({ error: 'Invalid action' });
   } catch (err) {
     return jsonResp({ error: err && err.message ? err.message : String(err) });
@@ -75,7 +82,26 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  var data = JSON.parse(e.postData.contents);
+  try {
+    var data = JSON.parse(e.postData.contents);
+
+    // Route admin API actions
+    if (data.action === 'approveRow')        return approveRowApi(data);
+    if (data.action === 'denyRow')           return denyRowApi(data);
+    if (data.action === 'sendConflictEmail') return sendConflictEmailApi(data);
+
+    // Default: teacher form submission
+    return handleFormSubmission(data);
+  } catch (err) {
+    return jsonResp({ error: err && err.message ? err.message : String(err) });
+  }
+}
+
+// ============================================================
+// FORM SUBMISSION
+// ============================================================
+
+function handleFormSubmission(data) {
   var auth = verifyToken(data.token);
   if (!auth.valid) return jsonResp({ error: 'Unauthorized' });
 
@@ -83,7 +109,6 @@ function doPost(e) {
     return jsonResp({ success: false, message: 'Missing required field' });
   }
 
-  // Build entries array from entries[] or flat date fields
   var entries = [];
   if (data.entries && Array.isArray(data.entries) && data.entries.length > 0) {
     entries = data.entries;
@@ -93,7 +118,6 @@ function doPost(e) {
     return jsonResp({ success: false, message: 'No date entries provided' });
   }
 
-  // Get or create sheet
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(SHEET_NAME);
   if (!sheet) {
@@ -101,56 +125,50 @@ function doPost(e) {
     sheet.appendRow([
       'Timestamp', 'Submitted By', 'Teacher Name', 'Grade Level', 'Purpose',
       'Space', 'Date', 'Start Time', 'End Time', 'Status',
-      'Approve', 'Conflict Notes', 'Send Conflict Email'
+      'Approve', 'Conflict Notes', 'Send Conflict Email', 'Row ID'
     ]);
-    sheet.getRange(1, 1, 1, 13).setFontWeight('bold').setBackground('#0B0B0B').setFontColor('#FFFFFF');
+    sheet.getRange(1, 1, 1, 14).setFontWeight('bold').setBackground('#0B0B0B').setFontColor('#FFFFFF');
     sheet.setFrozenRows(1);
   }
 
-  // Save one row per entry
   var savedCount    = 0;
   var conflictCount = 0;
+  var savedRowIds   = [];
 
   for (var i = 0; i < entries.length; i++) {
     var entry = entries[i];
     if (!entry.date || !entry.startTime || !entry.endTime) continue;
 
-    // Check calendar for conflicts BEFORE saving
     var conflict = checkConflict(data.space, entry.date, entry.startTime, entry.endTime);
+    var rowId    = generateRowId();
 
     var newRow = sheet.getLastRow() + 1;
     sheet.appendRow([
       new Date(), auth.email, data.teacherName, data.gradeLevel, data.purpose,
       data.space, entry.date, entry.startTime, entry.endTime,
       conflict ? 'CONFLICT' : 'Pending',
-      false,               // Approve checkbox
-      conflict || '',      // Conflict Notes
-      conflict ? false : '' // Send Conflict Email — only written for conflict rows
+      false,
+      conflict || '',
+      conflict ? false : '',
+      rowId
     ]);
 
-    // Always insert the Approve checkbox
     sheet.getRange(newRow, COL.APPROVE).insertCheckboxes();
 
     if (conflict) {
-      // Red styling for conflict rows
-      sheet.getRange(newRow, COL.STATUS)
-        .setBackground('#FEE2E2').setFontColor('#991B1B').setFontWeight('bold');
-      sheet.getRange(newRow, COL.CONFLICT_NOTES)
-        .setBackground('#FEE2E2').setFontColor('#991B1B').setFontStyle('italic');
-      sheet.getRange(newRow, COL.NOTIFY_CONFLICT)
-        .insertCheckboxes()
-        .setBackground('#FEE2E2');
+      sheet.getRange(newRow, COL.STATUS).setBackground('#FEE2E2').setFontColor('#991B1B').setFontWeight('bold');
+      sheet.getRange(newRow, COL.CONFLICT_NOTES).setBackground('#FEE2E2').setFontColor('#991B1B').setFontStyle('italic');
+      sheet.getRange(newRow, COL.NOTIFY_CONFLICT).insertCheckboxes().setBackground('#FEE2E2');
       conflictCount++;
     } else {
-      // Yellow "Pending" styling
       sheet.getRange(newRow, COL.STATUS).setBackground('#FEF9C3').setFontColor('#92400E');
     }
 
+    savedRowIds.push({ rowId: rowId, date: entry.date, conflict: conflict });
     savedCount++;
   }
 
-  // Build formatted entries string for emails
-  var spaceName       = SPACE_LABELS[data.space] || data.space;
+  var spaceName        = SPACE_LABELS[data.space] || data.space;
   var entriesFormatted = '';
   for (var j = 0; j < entries.length; j++) {
     var ent = entries[j];
@@ -159,7 +177,7 @@ function doPost(e) {
     if (j < entries.length - 1) entriesFormatted += '\n';
   }
 
-  // ── Email to teacher ──────────────────────────────────────
+  // ── Email teacher ─────────────────────────────────────────
   var teacherSubject, teacherBody;
   if (savedCount === 1) {
     teacherSubject = '📋 Reservation Request Received — ' + spaceName + ' on ' + formatDateLong(entries[0].date);
@@ -183,8 +201,8 @@ function doPost(e) {
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
       'Space:    ' + spaceName + '\n' +
       'Purpose:  ' + data.purpose + '\n' +
-      'Grade:    ' + data.gradeLevel + '\n' +
-      '\nDATES (' + savedCount + ')\n' +
+      'Grade:    ' + data.gradeLevel + '\n\n' +
+      'DATES (' + savedCount + ')\n' +
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
       entriesFormatted +
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
@@ -192,9 +210,8 @@ function doPost(e) {
   }
   MailApp.sendEmail({ to: auth.email, subject: teacherSubject, body: teacherBody });
 
-  // ── Email to admin ────────────────────────────────────────
-  // Check other spaces for same-date FYI (full day, not time-specific)
-  var fyiLines = [];
+  // ── FYI: other spaces on same date ───────────────────────
+  var fyiLines     = [];
   var datesChecked = {};
   for (var fi = 0; fi < entries.length; fi++) {
     var fyiDate = entries[fi].date;
@@ -202,13 +219,13 @@ function doPost(e) {
       datesChecked[fyiDate] = true;
       var fyiEvents = getOtherSpaceEventsOnDate(data.space, fyiDate);
       if (fyiEvents.length > 0) {
-        // If multi-date, prefix each block with its date
         var prefix = entries.length > 1 ? formatDateLong(fyiDate) + ':\n  ' : '';
         fyiLines.push(prefix + fyiEvents.join('\n  '));
       }
     }
   }
 
+  // ── Email admin — one click-to-review link per row ────────
   var adminSubject;
   if (conflictCount > 0) {
     adminSubject = '⚠️ CONFLICT — New Reservation — ' + data.teacherName + ' | ' + spaceName;
@@ -218,41 +235,59 @@ function doPost(e) {
     adminSubject = '🔔 New Reservation — ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
   }
 
+  var approvalLinks = '';
+  for (var k = 0; k < savedRowIds.length; k++) {
+    var rd = savedRowIds[k];
+    approvalLinks +=
+      (savedRowIds.length > 1 ? '  ' + formatDateLong(rd.date) + ':\n  ' : '  ') +
+      ADMIN_PAGE_URL + '?id=' + rd.rowId +
+      (rd.conflict ? '  ⚠️ CONFLICT' : '') + '\n';
+  }
+
   var adminBody =
     'A new space reservation request has been submitted.\n\n' +
     'Teacher:  ' + data.teacherName + '\n' +
-    'Grade:    ' + data.gradeLevel + '\n' +
-    'Purpose:  ' + data.purpose + '\n' +
-    'Space:    ' + spaceName + '\n' +
-    (savedCount > 1 ? '\nDATES (' + savedCount + ')\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '') +
+    'Grade:    ' + data.gradeLevel  + '\n' +
+    'Purpose:  ' + data.purpose     + '\n' +
+    'Space:    ' + spaceName        + '\n' +
+    (savedCount > 1 ? '\nDATES (' + savedCount + ')\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '\n') +
     entriesFormatted +
     (savedCount > 1 ? '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '') +
     (conflictCount > 0
-      ? '\n⚠️ ' + conflictCount + ' date(s) have CONFLICTS with existing calendar events.\n' +
-        'Check the sheet — use the "Send Conflict Email" checkbox to notify the teacher.\n'
+      ? '\n⚠️ ' + conflictCount + ' date(s) have CONFLICTS with existing calendar events.\n'
       : '') +
     (fyiLines.length > 0
       ? '\nℹ️ FYI — OTHER SPACES ALSO HAVE EVENTS ON THIS DATE\n' +
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
         fyiLines.join('\n') + '\n' +
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-        '(Different space — not a conflict, just a heads-up.)\n'
+        '(Different space — not a conflict.)\n'
       : '') +
-    '\n👉 Open Reservations Sheet:\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl();
+    '\n👉 REVIEW & APPROVE:\n' + approvalLinks +
+    '\n📊 View all in spreadsheet:\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl();
 
   MailApp.sendEmail({ to: ADMIN_EMAIL, subject: adminSubject, body: adminBody });
 
-  return jsonResp({ success: true, message: 'Saved ' + savedCount + ' rows', saved: savedCount, conflicts: conflictCount });
+  return jsonResp({ success: true, saved: savedCount, conflicts: conflictCount });
 }
 
+// ============================================================
+// GET EVENTS (calendar feed — accepts optional date range)
+// ============================================================
+
 function getEvents(e) {
-  var token = '';
-  if (e && e.parameter && e.parameter.token) token = String(e.parameter.token);
-  var auth = verifyToken(token);
+  var token = (e && e.parameter && e.parameter.token) ? String(e.parameter.token) : '';
+  var auth  = verifyToken(token);
   if (!auth.valid) return jsonResp({ error: 'Unauthorized' });
 
-  var now = new Date();
-  var to  = new Date(now.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000);
+  var now, to;
+  if (e.parameter.startDate && e.parameter.endDate) {
+    now = new Date(e.parameter.startDate + 'T00:00:00');
+    to  = new Date(e.parameter.endDate   + 'T23:59:59');
+  } else {
+    now = new Date();
+    to  = new Date(now.getTime() + DAYS_AHEAD * 24 * 60 * 60 * 1000);
+  }
 
   var events = [];
   Object.keys(CALENDAR_IDS).forEach(function(spaceId) {
@@ -275,11 +310,206 @@ function getEvents(e) {
   return jsonResp({ events: events });
 }
 
+// ============================================================
+// ADMIN API — GET ROW BY ID
+// ============================================================
+
+function getAdminRow(e) {
+  var token = (e && e.parameter && e.parameter.token) ? String(e.parameter.token) : '';
+  var rowId = (e && e.parameter && e.parameter.id)    ? String(e.parameter.id)    : '';
+
+  var auth = verifyToken(token);
+  if (!auth.valid)          return jsonResp({ error: 'Unauthorized' });
+  if (!isAdmin(auth.email)) return jsonResp({ error: 'Admin access required' });
+  if (!rowId)               return jsonResp({ error: 'Missing row ID' });
+
+  var sheet = getSheet();
+  if (!sheet) return jsonResp({ error: 'Sheet not found' });
+
+  var row = findRowById(sheet, rowId);
+  if (!row) return jsonResp({ error: 'Request not found' });
+
+  return jsonResp({ row: row });
+}
+
+// ============================================================
+// ADMIN API — APPROVE
+// ============================================================
+
+function approveRowApi(data) {
+  var auth = verifyToken(data.token);
+  if (!auth.valid)          return jsonResp({ error: 'Unauthorized' });
+  if (!isAdmin(auth.email)) return jsonResp({ error: 'Admin access required' });
+  if (!data.id)             return jsonResp({ error: 'Missing row ID' });
+
+  var sheet = getSheet();
+  if (!sheet) return jsonResp({ error: 'Sheet not found' });
+
+  var row = findRowById(sheet, data.id);
+  if (!row) return jsonResp({ error: 'Request not found' });
+
+  var statusCell = sheet.getRange(row.rowIndex, COL.STATUS);
+  if (statusCell.getValue() === 'Approved') {
+    return jsonResp({ success: true, message: 'Already approved' });
+  }
+
+  // Re-check for conflict at approval time
+  var conflict = checkConflict(row.spaceId, row.date, row.startTime, row.endTime);
+  if (conflict) {
+    statusCell.setValue('CONFLICT').setBackground('#FEE2E2').setFontColor('#991B1B').setFontWeight('bold');
+    sheet.getRange(row.rowIndex, COL.CONFLICT_NOTES)
+      .setValue('Conflicts with: ' + conflict).setBackground('#FEE2E2').setFontColor('#991B1B');
+    return jsonResp({ error: 'conflict', conflictNotes: conflict });
+  }
+
+  // Create calendar event
+  var startDt = parseDateTime(row.date, row.startTime);
+  var endDt   = parseDateTime(row.date, row.endTime);
+  var calNote = '';
+  try {
+    var cal = CalendarApp.getCalendarById(CALENDAR_IDS[row.spaceId]);
+    if (cal) {
+      cal.createEvent(
+        row.spaceName + ' — ' + row.teacherName + ' (' + row.gradeLevel + ')',
+        startDt, endDt,
+        { description: 'Purpose: ' + row.purpose + '\nRequested by: ' + row.teacherEmail }
+      );
+    }
+  } catch (err) {
+    calNote = 'Calendar event could not be created automatically: ' + err.message;
+  }
+
+  // Update sheet
+  statusCell.setValue('Approved').setBackground('#DCFCE7').setFontColor('#166534').setFontWeight('normal');
+  sheet.getRange(row.rowIndex, COL.APPROVE).setValue(true).setBackground('#DCFCE7');
+
+  // Email teacher
+  MailApp.sendEmail({
+    to: row.teacherEmail,
+    subject: '✅ Reservation Approved — ' + row.spaceName + ' on ' + formatDateLong(row.date),
+    body:
+      'Hi ' + row.teacherName + ',\n\n' +
+      'Great news! Your space reservation has been approved.\n\n' +
+      'APPROVED RESERVATION\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+      'Space:    ' + row.spaceName + '\n' +
+      'Purpose:  ' + row.purpose   + '\n' +
+      'Grade:    ' + row.gradeLevel + '\n' +
+      'Date:     ' + formatDateLong(row.date) + '\n' +
+      'Time:     ' + formatTime12(row.startTime) + ' – ' + formatTime12(row.endTime) + '\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      'This reservation is now on the SLAM Reservations calendar.\n' +
+      (calNote ? '\nNote: ' + calNote + '\n' : '') +
+      '\n— SLAM Athletics Administration'
+  });
+
+  return jsonResp({ success: true });
+}
+
+// ============================================================
+// ADMIN API — DENY
+// ============================================================
+
+function denyRowApi(data) {
+  var auth = verifyToken(data.token);
+  if (!auth.valid)          return jsonResp({ error: 'Unauthorized' });
+  if (!isAdmin(auth.email)) return jsonResp({ error: 'Admin access required' });
+  if (!data.id)             return jsonResp({ error: 'Missing row ID' });
+
+  var sheet = getSheet();
+  if (!sheet) return jsonResp({ error: 'Sheet not found' });
+
+  var row = findRowById(sheet, data.id);
+  if (!row) return jsonResp({ error: 'Request not found' });
+
+  var reason = (data.reason || '').trim() || 'No reason provided.';
+
+  sheet.getRange(row.rowIndex, COL.STATUS)
+    .setValue('Denied')
+    .setBackground('#E5E7EB').setFontColor('#374151').setFontWeight('bold');
+
+  MailApp.sendEmail({
+    to: row.teacherEmail,
+    subject: '❌ Reservation Request Denied — ' + row.spaceName + ' on ' + formatDateLong(row.date),
+    body:
+      'Hi ' + row.teacherName + ',\n\n' +
+      'Unfortunately, your space reservation request has been denied.\n\n' +
+      'REQUEST DETAILS\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+      'Space:    ' + row.spaceName  + '\n' +
+      'Purpose:  ' + row.purpose    + '\n' +
+      'Grade:    ' + row.gradeLevel + '\n' +
+      'Date:     ' + formatDateLong(row.date) + '\n' +
+      'Time:     ' + formatTime12(row.startTime) + ' – ' + formatTime12(row.endTime) + '\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      'REASON\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+      reason + '\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      'Please visit the SLAM Reservations site to submit a new request if needed.\n\n' +
+      '— SLAM Athletics Administration'
+  });
+
+  return jsonResp({ success: true });
+}
+
+// ============================================================
+// ADMIN API — SEND CONFLICT EMAIL
+// ============================================================
+
+function sendConflictEmailApi(data) {
+  var auth = verifyToken(data.token);
+  if (!auth.valid)          return jsonResp({ error: 'Unauthorized' });
+  if (!isAdmin(auth.email)) return jsonResp({ error: 'Admin access required' });
+  if (!data.id)             return jsonResp({ error: 'Missing row ID' });
+
+  var sheet = getSheet();
+  if (!sheet) return jsonResp({ error: 'Sheet not found' });
+
+  var row = findRowById(sheet, data.id);
+  if (!row) return jsonResp({ error: 'Request not found' });
+
+  MailApp.sendEmail({
+    to: row.teacherEmail,
+    subject: '⚠️ Reservation Conflict — ' + row.spaceName + ' on ' + formatDateLong(row.date),
+    body:
+      'Hi ' + row.teacherName + ',\n\n' +
+      'Unfortunately, your space reservation request has a scheduling conflict and cannot be approved at this time.\n\n' +
+      'YOUR REQUEST\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+      'Space:    ' + row.spaceName  + '\n' +
+      'Purpose:  ' + row.purpose    + '\n' +
+      'Grade:    ' + row.gradeLevel + '\n' +
+      'Date:     ' + formatDateLong(row.date) + '\n' +
+      'Time:     ' + formatTime12(row.startTime) + ' – ' + formatTime12(row.endTime) + '\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+      (row.conflictNotes ? 'CONFLICT\n' + row.conflictNotes + '\n\n' : '') +
+      'Please visit the SLAM Reservations site to submit a new request for a different time or date.\n\n' +
+      '— SLAM Athletics Administration'
+  });
+
+  sheet.getRange(row.rowIndex, COL.STATUS)
+    .setValue('CONFLICT - Notified').setBackground('#FECACA').setFontColor('#7F1D1D');
+
+  return jsonResp({ success: true });
+}
+
+// ============================================================
+// AUTH & SHARED HELPERS
+// ============================================================
+
+function isAdmin(email) {
+  return email === ADMIN_EMAIL;
+}
+
 function verifyToken(token) {
   if (!token) return { valid: false };
   try {
-    var res = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token), { muteHttpExceptions: true });
-    var p   = JSON.parse(res.getContentText());
+    var res = UrlFetchApp.fetch(
+      'https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(token),
+      { muteHttpExceptions: true }
+    );
+    var p = JSON.parse(res.getContentText());
     if (p.error || !p.email) return { valid: false };
     if (!p.email.endsWith('@' + ALLOWED_DOMAIN)) return { valid: false };
     return { valid: true, email: p.email, name: p.name };
@@ -292,20 +522,69 @@ function jsonResp(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
 }
 
-// ============================================================
-// CONFLICT CHECK
-// ============================================================
-// Returns a string describing conflicting event(s), or null if clear.
+function getSheet() {
+  return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
+}
 
-// Returns array of FYI strings for OTHER spaces that have ANY events on the same date.
-// Used to inform admin — not a conflict, just a heads-up.
+function findRowById(sheet, rowId) {
+  var values = sheet.getDataRange().getValues();
+  for (var i = 1; i < values.length; i++) {
+    if (String(values[i][COL.ROW_ID - 1]) === String(rowId)) {
+      var r = values[i];
+      return {
+        id:            rowId,
+        rowIndex:      i + 1,
+        teacherEmail:  r[COL.SUBMITTED_BY    - 1],
+        teacherName:   r[COL.TEACHER_NAME    - 1],
+        gradeLevel:    r[COL.GRADE_LEVEL     - 1],
+        purpose:       r[COL.PURPOSE         - 1],
+        spaceId:       r[COL.SPACE           - 1],
+        spaceName:     SPACE_LABELS[r[COL.SPACE - 1]] || r[COL.SPACE - 1],
+        date:          normalizeDate(r[COL.DATE       - 1]),
+        startTime:     normalizeTime(r[COL.START_TIME - 1]),
+        endTime:       normalizeTime(r[COL.END_TIME   - 1]),
+        status:        r[COL.STATUS          - 1],
+        conflictNotes: r[COL.CONFLICT_NOTES  - 1] || ''
+      };
+    }
+  }
+  return null;
+}
+
+// ============================================================
+// CONFLICT CHECK & FYI
+// ============================================================
+
+function checkConflict(spaceId, dateStr, startTimeStr, endTimeStr) {
+  try {
+    var calId = CALENDAR_IDS[spaceId];
+    if (!calId) return null;
+    var cal    = CalendarApp.getCalendarById(calId);
+    if (!cal)  return null;
+    var startDt = parseDateTime(dateStr, startTimeStr);
+    var endDt   = parseDateTime(dateStr, endTimeStr);
+    var events  = cal.getEvents(startDt, endDt);
+    if (events.length === 0) return null;
+    return events.map(function(ev) {
+      var s    = ev.getStartTime();
+      var h    = s.getHours(), m = s.getMinutes();
+      var ampm = h >= 12 ? 'PM' : 'AM';
+      var h12  = h % 12 || 12;
+      var mStr = m < 10 ? '0' + m : '' + m;
+      return '"' + ev.getTitle() + '" at ' + h12 + ':' + mStr + ' ' + ampm;
+    }).join('; ');
+  } catch (err) {
+    return null;
+  }
+}
+
 function getOtherSpaceEventsOnDate(excludeSpaceId, dateStr) {
   var fyi = [];
   try {
     var startDt = new Date(dateStr + 'T00:00:00');
     var endDt   = new Date(dateStr + 'T23:59:59');
     Object.keys(CALENDAR_IDS).forEach(function(spaceId) {
-      if (spaceId === excludeSpaceId) return;  // Skip the space being requested
+      if (spaceId === excludeSpaceId) return;
       var cal = CalendarApp.getCalendarById(CALENDAR_IDS[spaceId]);
       if (!cal) return;
       var events = cal.getEvents(startDt, endDt);
@@ -321,54 +600,13 @@ function getOtherSpaceEventsOnDate(excludeSpaceId, dateStr) {
       });
       fyi.push(label + ': ' + names.join(', '));
     });
-  } catch (err) {
-    // Silently ignore — FYI is informational only, don't block anything
-  }
+  } catch (err) {}
   return fyi;
 }
 
-function checkConflict(spaceId, dateStr, startTimeStr, endTimeStr) {
-  try {
-    var calId = CALENDAR_IDS[spaceId];
-    if (!calId) return null;
-    var cal = CalendarApp.getCalendarById(calId);
-    if (!cal) return null;
-
-    var startDt = parseDateTime(dateStr, startTimeStr);
-    var endDt   = parseDateTime(dateStr, endTimeStr);
-    var events  = cal.getEvents(startDt, endDt);
-    if (events.length === 0) return null;
-
-    return events.map(function(ev) {
-      var s    = ev.getStartTime();
-      var h    = s.getHours(), m = s.getMinutes();
-      var ampm = h >= 12 ? 'PM' : 'AM';
-      var h12  = h % 12 || 12;
-      var mStr = m < 10 ? '0' + m : '' + m;
-      return '"' + ev.getTitle() + '" at ' + h12 + ':' + mStr + ' ' + ampm;
-    }).join('; ');
-  } catch (err) {
-    return null;  // Don't block submission if calendar check fails
-  }
-}
-
 // ============================================================
-// APPROVAL & CONFLICT NOTIFICATION SYSTEM
-// ============================================================
-// HOW TO INSTALL (one-time setup):
-//   1. Open Apps Script editor: Extensions → Apps Script
-//   2. Paste/sync this file into Code.gs
-//   3. Run createApproveTrigger() once (Run menu → Run function)
-//   4. Grant permissions when prompted
-//
-// COLUMN K  — "Approve" checkbox
-//   Checks calendar for conflicts at approval time.
-//   If clear  → creates calendar event + emails teacher approval
-//   If conflict → blocks, unchecks box, emails admin a warning
-//
-// COLUMN M  — "Send Conflict Email" checkbox
-//   Sends teacher a polite conflict notice + asks them to re-submit
-//   Updates status → "CONFLICT - Notified"
+// APPROVAL TRIGGER (spreadsheet checkbox — col K)
+// Run createApproveTrigger() once from the Apps Script editor.
 // ============================================================
 
 function createApproveTrigger() {
@@ -382,163 +620,108 @@ function createApproveTrigger() {
     .forSpreadsheet(SpreadsheetApp.getActiveSpreadsheet())
     .onEdit()
     .create();
-  Logger.log('✅ Approval trigger installed successfully.');
+  Logger.log('✅ Approval trigger installed.');
 }
 
 function onEditApprove(e) {
   var sheet = e.range.getSheet();
   if (sheet.getName() !== SHEET_NAME) return;
-
   var col = e.range.getColumn();
   var row = e.range.getRow();
-  if (row <= 1) return;                        // Skip header
-  if (String(e.value) !== 'TRUE') return;      // Only act on check, not uncheck
-
+  if (row <= 1) return;
+  if (String(e.value) !== 'TRUE') return;
   if (col === COL.APPROVE)          handleApproval(sheet, row);
   else if (col === COL.NOTIFY_CONFLICT) handleConflictNotification(sheet, row);
 }
 
-// ── Approval ─────────────────────────────────────────────────
-
 function handleApproval(sheet, row) {
-  var statusCell    = sheet.getRange(row, COL.STATUS);
-  var currentStatus = statusCell.getValue();
-  if (currentStatus === 'Approved') return;  // Already done
+  var statusCell = sheet.getRange(row, COL.STATUS);
+  if (statusCell.getValue() === 'Approved') return;
 
-  var rowData      = sheet.getRange(row, 1, 1, 13).getValues()[0];
-  var teacherEmail = rowData[COL.SUBMITTED_BY - 1];
-  var teacherName  = rowData[COL.TEACHER_NAME - 1];
-  var gradeLevel   = rowData[COL.GRADE_LEVEL - 1];
-  var purpose      = rowData[COL.PURPOSE - 1];
-  var spaceId      = rowData[COL.SPACE - 1];
-  var dateVal      = rowData[COL.DATE - 1];
-  var startTimeVal = rowData[COL.START_TIME - 1];
-  var endTimeVal   = rowData[COL.END_TIME - 1];
-
+  var rowData      = sheet.getRange(row, 1, 1, 14).getValues()[0];
+  var teacherEmail = rowData[COL.SUBMITTED_BY  - 1];
+  var teacherName  = rowData[COL.TEACHER_NAME  - 1];
+  var gradeLevel   = rowData[COL.GRADE_LEVEL   - 1];
+  var purpose      = rowData[COL.PURPOSE       - 1];
+  var spaceId      = rowData[COL.SPACE         - 1];
   var spaceName    = SPACE_LABELS[spaceId] || spaceId;
-  var dateStr      = normalizeDate(dateVal);
-  var startTimeStr = normalizeTime(startTimeVal);
-  var endTimeStr   = normalizeTime(endTimeVal);
+  var dateStr      = normalizeDate(rowData[COL.DATE       - 1]);
+  var startTimeStr = normalizeTime(rowData[COL.START_TIME - 1]);
+  var endTimeStr   = normalizeTime(rowData[COL.END_TIME   - 1]);
 
-  // Re-check for conflict right at approval time (something may have changed)
   var conflict = checkConflict(spaceId, dateStr, startTimeStr, endTimeStr);
   if (conflict) {
-    // Block — uncheck the approve box, flag the row, alert admin
     sheet.getRange(row, COL.APPROVE).setValue(false);
     statusCell.setValue('CONFLICT').setBackground('#FEE2E2').setFontColor('#991B1B').setFontWeight('bold');
-    sheet.getRange(row, COL.CONFLICT_NOTES)
-      .setValue('Conflicts with: ' + conflict)
-      .setBackground('#FEE2E2').setFontColor('#991B1B').setFontStyle('italic');
-    // Make sure the Notify checkbox is there
-    var notifyCell = sheet.getRange(row, COL.NOTIFY_CONFLICT);
-    if (notifyCell.getValue() === '' || notifyCell.getValue() === false) {
-      notifyCell.insertCheckboxes();
-    }
-    notifyCell.setValue(false).setBackground('#FEE2E2');
-
+    sheet.getRange(row, COL.CONFLICT_NOTES).setValue('Conflicts with: ' + conflict).setBackground('#FEE2E2').setFontColor('#991B1B');
+    var nc = sheet.getRange(row, COL.NOTIFY_CONFLICT);
+    if (nc.getValue() === '' || nc.getValue() === false) nc.insertCheckboxes();
+    nc.setValue(false).setBackground('#FEE2E2');
     MailApp.sendEmail({
       to: ADMIN_EMAIL,
       subject: '⚠️ Approval Blocked — Conflict on ' + spaceName + ' (' + formatDateLong(dateStr) + ')',
-      body:
-        'Approval was blocked for ' + teacherName + '\'s reservation.\n\n' +
-        'Space:    ' + spaceName + '\n' +
-        'Date:     ' + formatDateLong(dateStr) + '\n' +
-        'Time:     ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n\n' +
-        'Conflicts with: ' + conflict + '\n\n' +
-        'Use the "Send Conflict Email" checkbox (col M) in the sheet to notify the teacher.'
+      body: 'Approval blocked for ' + teacherName + '\'s reservation.\n\nConflicts with: ' + conflict
     });
     return;
   }
 
-  // No conflict — create calendar event
-  var startDt = parseDateTime(dateStr, startTimeStr);
-  var endDt   = parseDateTime(dateStr, endTimeStr);
   var calNote = '';
   try {
     var cal = CalendarApp.getCalendarById(CALENDAR_IDS[spaceId]);
     if (cal) {
       cal.createEvent(
         spaceName + ' — ' + teacherName + ' (' + gradeLevel + ')',
-        startDt, endDt,
+        parseDateTime(dateStr, startTimeStr), parseDateTime(dateStr, endTimeStr),
         { description: 'Purpose: ' + purpose + '\nRequested by: ' + teacherEmail }
       );
     }
-  } catch (err) {
-    calNote = 'Note: Calendar event could not be created automatically (' + err.message + '). Please add it manually.';
-  }
+  } catch (err) { calNote = err.message; }
 
-  // Mark row green / Approved
   statusCell.setValue('Approved').setBackground('#DCFCE7').setFontColor('#166534').setFontWeight('normal');
   sheet.getRange(row, COL.APPROVE).setBackground('#DCFCE7');
 
-  // Email teacher confirmation
   MailApp.sendEmail({
     to: teacherEmail,
     subject: '✅ Reservation Approved — ' + spaceName + ' on ' + formatDateLong(dateStr),
     body:
-      'Hi ' + teacherName + ',\n\n' +
-      'Great news! Your space reservation has been approved.\n\n' +
-      'APPROVED RESERVATION\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-      'Space:    ' + spaceName + '\n' +
-      'Purpose:  ' + purpose + '\n' +
-      'Grade:    ' + gradeLevel + '\n' +
-      'Date:     ' + formatDateLong(dateStr) + '\n' +
-      'Time:     ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-      'This reservation is now on the SLAM Reservations calendar.\n' +
-      (calNote ? '\n' + calNote + '\n' : '') +
-      '\n— SLAM Athletics Administration'
+      'Hi ' + teacherName + ',\n\nYour space reservation has been approved.\n\n' +
+      'Space: ' + spaceName + ' | Date: ' + formatDateLong(dateStr) +
+      ' | Time: ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n\n' +
+      (calNote ? 'Note: ' + calNote + '\n\n' : '') +
+      '— SLAM Athletics Administration'
   });
 }
 
-// ── Conflict Notification ─────────────────────────────────────
-
 function handleConflictNotification(sheet, row) {
   var statusCell = sheet.getRange(row, COL.STATUS);
-  if (statusCell.getValue() === 'CONFLICT - Notified') return;  // Already sent
+  if (statusCell.getValue() === 'CONFLICT - Notified') return;
 
-  var rowData       = sheet.getRange(row, 1, 1, 13).getValues()[0];
-  var teacherEmail  = rowData[COL.SUBMITTED_BY - 1];
-  var teacherName   = rowData[COL.TEACHER_NAME - 1];
-  var gradeLevel    = rowData[COL.GRADE_LEVEL - 1];
-  var purpose       = rowData[COL.PURPOSE - 1];
-  var spaceId       = rowData[COL.SPACE - 1];
-  var dateVal       = rowData[COL.DATE - 1];
-  var startTimeVal  = rowData[COL.START_TIME - 1];
-  var endTimeVal    = rowData[COL.END_TIME - 1];
+  var rowData       = sheet.getRange(row, 1, 1, 14).getValues()[0];
+  var teacherEmail  = rowData[COL.SUBMITTED_BY   - 1];
+  var teacherName   = rowData[COL.TEACHER_NAME   - 1];
+  var spaceId       = rowData[COL.SPACE          - 1];
+  var spaceName     = SPACE_LABELS[spaceId] || spaceId;
+  var dateStr       = normalizeDate(rowData[COL.DATE       - 1]);
+  var startTimeStr  = normalizeTime(rowData[COL.START_TIME - 1]);
+  var endTimeStr    = normalizeTime(rowData[COL.END_TIME   - 1]);
   var conflictNotes = rowData[COL.CONFLICT_NOTES - 1];
-
-  var spaceName    = SPACE_LABELS[spaceId] || spaceId;
-  var dateStr      = normalizeDate(dateVal);
-  var startTimeStr = normalizeTime(startTimeVal);
-  var endTimeStr   = normalizeTime(endTimeVal);
 
   MailApp.sendEmail({
     to: teacherEmail,
     subject: '⚠️ Reservation Conflict — ' + spaceName + ' on ' + formatDateLong(dateStr),
     body:
-      'Hi ' + teacherName + ',\n\n' +
-      'Unfortunately, your space reservation request has a scheduling conflict and cannot be approved.\n\n' +
-      'YOUR REQUEST\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-      'Space:    ' + spaceName + '\n' +
-      'Purpose:  ' + purpose + '\n' +
-      'Grade:    ' + gradeLevel + '\n' +
-      'Date:     ' + formatDateLong(dateStr) + '\n' +
-      'Time:     ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-      (conflictNotes ? 'CONFLICT\n' + conflictNotes + '\n\n' : '') +
-      'Please visit the SLAM Reservations site to submit a new request for a different time or date.\n\n' +
-      '— SLAM Athletics Administration'
+      'Hi ' + teacherName + ',\n\nYour reservation has a scheduling conflict and cannot be approved.\n\n' +
+      'Space: ' + spaceName + ' | Date: ' + formatDateLong(dateStr) +
+      ' | Time: ' + formatTime12(startTimeStr) + ' – ' + formatTime12(endTimeStr) + '\n\n' +
+      (conflictNotes ? 'Conflict: ' + conflictNotes + '\n\n' : '') +
+      'Please submit a new request for a different time.\n\n— SLAM Athletics Administration'
   });
 
-  // Update status to show notification was sent
   statusCell.setValue('CONFLICT - Notified').setBackground('#FECACA').setFontColor('#7F1D1D');
   sheet.getRange(row, COL.NOTIFY_CONFLICT).setBackground('#FECACA');
 }
 
-// ── Date/Time Normalizers (sheet values can be Date objects or strings) ──
+// ── Date/Time normalizers ─────────────────────────────────────
 
 function normalizeDate(val) {
   if (!val) return '';
@@ -554,18 +737,14 @@ function normalizeDate(val) {
 function normalizeTime(val) {
   if (!val) return '00:00';
   if (val instanceof Date) {
-    var h = val.getHours();
-    var m = val.getMinutes();
-    return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    return String(val.getHours()).padStart(2, '0') + ':' + String(val.getMinutes()).padStart(2, '0');
   }
   return String(val);
 }
 
 function parseDateTime(dateStr, timeStr) {
   var parts = timeStr.split(':');
-  var h  = parseInt(parts[0]) || 0;
-  var m  = parseInt(parts[1]) || 0;
-  var dt = new Date(dateStr + 'T00:00:00');
-  dt.setHours(h, m, 0, 0);
+  var dt    = new Date(dateStr + 'T00:00:00');
+  dt.setHours(parseInt(parts[0]) || 0, parseInt(parts[1]) || 0, 0, 0);
   return dt;
 }
