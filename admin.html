@@ -944,7 +944,7 @@ async function loadCalendarEvents() {
     // The pending request — purple so it stands apart from space colors
     const reqStart = new Date(rowData.date + 'T' + rowData.startTime);
     const reqEnd   = new Date(rowData.date + 'T' + rowData.endTime);
-    const reqTitle = shortTimeFromDate(reqStart) + '-' + shortTimeFromDate(reqEnd) +
+    const reqTitle = '📌 ' + shortTimeFromDate(reqStart) + '-' + shortTimeFromDate(reqEnd) +
                      ' ' + rowData.purpose + ' (' + rowData.teacherName + ')';
     calendar.addEvent({
       title:           reqTitle,

@@ -515,7 +515,8 @@ function denyRowApi(data) {
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
       reason + '\n' +
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-      'Please visit the SLAM Reservations site to submit a new request if needed.\n\n' +
+      'Please visit the SLAM Reservations site to submit a new request if needed:\n' +
+      SITE_URL + '\n\n' +
       '— SLAM Athletics Administration'
   });
 
