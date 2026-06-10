@@ -878,8 +878,9 @@ function initCalendar() {
     initialDate:   r.date,
     height:        'auto',
     headerToolbar: { left: 'prev', center: 'title', right: 'next' },
-    eventDisplay:  'block',
-    dayMaxEvents:  false,
+    eventDisplay:     'block',
+    dayMaxEvents:     false,
+    displayEventTime: false,
 
     dayCellDidMount(info) {
       const d = info.date;
@@ -933,14 +934,14 @@ async function loadCalendarEvents() {
             space:       ev.space,
             spaceName:   SPACE_NAMES[ev.space] || ev.space,
             description: ev.description || '',
-            fullTitle:   ev.title,
+            fullTitle:   parseCalendarPopupTitle(ev.title, ev.description || ''),
             isRequest:   false
           }
         });
       });
     }
 
-    // The pending request itself — orange so it stands apart from space colors
+    // The pending request — purple so it stands apart from space colors
     const reqStart = new Date(rowData.date + 'T' + rowData.startTime);
     const reqEnd   = new Date(rowData.date + 'T' + rowData.endTime);
     const reqTitle = shortTimeFromDate(reqStart) + '-' + shortTimeFromDate(reqEnd) +
@@ -957,7 +958,7 @@ async function loadCalendarEvents() {
         space:       rowData.spaceId,
         spaceName:   rowData.spaceName,
         description: rowData.purpose,
-        fullTitle:   rowData.purpose + ' (' + rowData.teacherName + ')',
+        fullTitle:   rowData.purpose + ' (' + rowData.teacherName + ' - ' + rowData.gradeLevel + ')',
         isRequest:   true
       }
     });
@@ -1070,6 +1071,18 @@ function formatDateShort(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function parseCalendarPopupTitle(title, description) {
+  // title format: "Space — Teacher (Grade)" e.g. "Cafegym — Ms. Vela (Kinder)"
+  // description format: "Purpose: Popsicle Party\nRequested by: ..."
+  const purposeMatch = description.match(/^Purpose:\s*(.+)/m);
+  const titleMatch   = title.match(/—\s*(.+?)\s*\(([^)]+)\)\s*$/);
+  if (purposeMatch && titleMatch) {
+    return purposeMatch[1].trim() + ' (' + titleMatch[1].trim() + ' - ' + titleMatch[2].trim() + ')';
+  }
+  if (purposeMatch) return purposeMatch[1].trim();
+  return title;
 }
 
 function shortTimeFromDate(dt) {
