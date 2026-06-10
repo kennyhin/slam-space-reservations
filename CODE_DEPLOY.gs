@@ -263,10 +263,15 @@ function handleFormSubmission(data) {
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
         '(Different space — not a conflict.)\n'
       : '') +
-    '\n👉 REVIEW REQUESTS:\n  ' + ADMIN_PAGE_URL + '\n' +
-    '\n📊 View all in spreadsheet:\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl();
+    '\n👉 REVIEW REQUESTS: ' + ADMIN_PAGE_URL + '\n' +
+    '\n📊 View spreadsheet: ' + SpreadsheetApp.getActiveSpreadsheet().getUrl();
 
-  MailApp.sendEmail({ to: ADMIN_EMAIL, subject: adminSubject, body: adminBody });
+  var ssUrl = SpreadsheetApp.getActiveSpreadsheet().getUrl();
+  var adminEmail = buildEmail(adminBody, [
+    { url: ADMIN_PAGE_URL, label: 'Review Requests →' },
+    { url: ssUrl,          label: 'View Spreadsheet' }
+  ]);
+  MailApp.sendEmail({ to: ADMIN_EMAIL, subject: adminSubject, body: adminEmail.body, htmlBody: adminEmail.htmlBody });
 
   return jsonResp({ success: true, saved: savedCount, conflicts: conflictCount });
 }
@@ -497,28 +502,26 @@ function denyRowApi(data) {
     .setValue('Denied')
     .setBackground('#E5E7EB').setFontColor('#374151').setFontWeight('bold');
 
-  MailApp.sendEmail({
-    to: row.teacherEmail,
-    subject: '❌ Reservation Request Denied — ' + row.spaceName + ' on ' + formatDateLong(row.date),
-    body:
-      'Hi ' + row.teacherName + ',\n\n' +
-      'Unfortunately, your space reservation request has been denied.\n\n' +
-      'REQUEST DETAILS\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-      'Space:    ' + row.spaceName  + '\n' +
-      'Purpose:  ' + row.purpose    + '\n' +
-      'Grade:    ' + row.gradeLevel + '\n' +
-      'Date:     ' + formatDateLong(row.date) + '\n' +
-      'Time:     ' + formatTime12(row.startTime) + ' – ' + formatTime12(row.endTime) + '\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-      'REASON\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-      reason + '\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-      'Please visit the SLAM Reservations site to submit a new request if needed:\n' +
-      SITE_URL + '\n\n' +
-      '— SLAM Athletics Administration'
-  });
+  var denyEmail = buildEmail(
+    'Hi ' + row.teacherName + ',\n\n' +
+    'Unfortunately, your space reservation request has been denied.\n\n' +
+    'REQUEST DETAILS\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    'Space:    ' + row.spaceName  + '\n' +
+    'Purpose:  ' + row.purpose    + '\n' +
+    'Grade:    ' + row.gradeLevel + '\n' +
+    'Date:     ' + formatDateLong(row.date) + '\n' +
+    'Time:     ' + formatTime12(row.startTime) + ' – ' + formatTime12(row.endTime) + '\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    'REASON\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    reason + '\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    'Please submit a new request if needed: ' + SITE_URL + '\n\n' +
+    '— SLAM Athletics Administration',
+    [{ url: SITE_URL, label: 'Submit New Request' }]
+  );
+  MailApp.sendEmail({ to: row.teacherEmail, subject: '❌ Reservation Request Denied — ' + row.spaceName + ' on ' + formatDateLong(row.date), body: denyEmail.body, htmlBody: denyEmail.htmlBody });
 
   return jsonResp({ success: true });
 }
@@ -537,25 +540,23 @@ function sendConflictEmailApi(data) {
   var row = findRowById(sheet, data.id);
   if (!row) return jsonResp({ error: 'Request not found' });
 
-  MailApp.sendEmail({
-    to: row.teacherEmail,
-    subject: '⚠️ Reservation Conflict — ' + row.spaceName + ' on ' + formatDateLong(row.date),
-    body:
-      'Hi ' + row.teacherName + ',\n\n' +
-      'Unfortunately, your space reservation request has a scheduling conflict and cannot be approved at this time.\n\n' +
-      'YOUR REQUEST\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
-      'Space:    ' + row.spaceName  + '\n' +
-      'Purpose:  ' + row.purpose    + '\n' +
-      'Grade:    ' + row.gradeLevel + '\n' +
-      'Date:     ' + formatDateLong(row.date) + '\n' +
-      'Time:     ' + formatTime12(row.startTime) + ' – ' + formatTime12(row.endTime) + '\n' +
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
-      (row.conflictNotes ? 'CONFLICT\n' + row.conflictNotes + '\n\n' : '') +
-      'Please visit the SLAM Reservations site to submit a new request for a different time or date:\n' +
-      SITE_URL + '\n\n' +
-      '— SLAM Athletics Administration'
-  });
+  var conflictEmail = buildEmail(
+    'Hi ' + row.teacherName + ',\n\n' +
+    'Unfortunately, your space reservation request has a scheduling conflict and cannot be approved at this time.\n\n' +
+    'YOUR REQUEST\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+    'Space:    ' + row.spaceName  + '\n' +
+    'Purpose:  ' + row.purpose    + '\n' +
+    'Grade:    ' + row.gradeLevel + '\n' +
+    'Date:     ' + formatDateLong(row.date) + '\n' +
+    'Time:     ' + formatTime12(row.startTime) + ' – ' + formatTime12(row.endTime) + '\n' +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
+    (row.conflictNotes ? 'CONFLICT\n' + row.conflictNotes + '\n\n' : '') +
+    'Submit a new request for a different time or date: ' + SITE_URL + '\n\n' +
+    '— SLAM Athletics Administration',
+    [{ url: SITE_URL, label: 'Submit New Request' }]
+  );
+  MailApp.sendEmail({ to: row.teacherEmail, subject: '⚠️ Reservation Conflict — ' + row.spaceName + ' on ' + formatDateLong(row.date), body: conflictEmail.body, htmlBody: conflictEmail.htmlBody });
 
   sheet.getRange(row.rowIndex, COL.STATUS)
     .setValue('CONFLICT - Notified').setBackground('#FECACA').setFontColor('#7F1D1D');
@@ -595,6 +596,22 @@ function verifyToken(token) {
 
 function jsonResp(data) {
   return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
+}
+
+// Builds { body, htmlBody } — keeps plain text and adds HTML with linked text for each URL.
+function buildEmail(plainBody, links) {
+  var html = plainBody
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/\n/g, '<br>\n');
+  links.forEach(function(link) {
+    var escaped = link.url.replace(/&/g, '&amp;');
+    html = html.replace(escaped,
+      '<a href="' + escaped + '" style="color:#C8102E;font-weight:600">' + link.label + '</a>');
+  });
+  return {
+    body:     plainBody,
+    htmlBody: '<div style="font-family:sans-serif;font-size:14px;line-height:1.7;color:#111">' + html + '</div>'
+  };
 }
 
 function getSheet() {
