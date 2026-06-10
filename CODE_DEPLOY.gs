@@ -244,15 +244,6 @@ function handleFormSubmission(data) {
     adminSubject = '🔔 New Reservation — ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
   }
 
-  var approvalLinks = '';
-  for (var k = 0; k < savedRowIds.length; k++) {
-    var rd = savedRowIds[k];
-    approvalLinks +=
-      (savedRowIds.length > 1 ? '  ' + formatDateLong(rd.date) + ':\n  ' : '  ') +
-      ADMIN_PAGE_URL + '?id=' + rd.rowId +
-      (rd.conflict ? '  ⚠️ CONFLICT' : '') + '\n';
-  }
-
   var adminBody =
     'A new space reservation request has been submitted.\n\n' +
     'Teacher:  ' + data.teacherName + '\n' +
@@ -272,7 +263,7 @@ function handleFormSubmission(data) {
         '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
         '(Different space — not a conflict.)\n'
       : '') +
-    '\n👉 REVIEW & APPROVE:\n' + approvalLinks +
+    '\n👉 REVIEW REQUESTS:\n  ' + ADMIN_PAGE_URL + '\n' +
     '\n📊 View all in spreadsheet:\n' + SpreadsheetApp.getActiveSpreadsheet().getUrl();
 
   MailApp.sendEmail({ to: ADMIN_EMAIL, subject: adminSubject, body: adminBody });

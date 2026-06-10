@@ -212,7 +212,7 @@
     .req-conflict-note { color: #991B1B; }
     .btn-review {
       background: none;
-      border: 1px solid var(--border);
+      border: 1.5px solid var(--red);
       border-radius: 6px;
       padding: 6px 14px;
       font-family: 'Barlow Condensed', sans-serif;
@@ -220,13 +220,13 @@
       font-weight: 600;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      color: var(--text);
+      color: var(--red);
       cursor: pointer;
       text-decoration: none;
       white-space: nowrap;
-      transition: border-color 0.15s, background 0.15s;
+      transition: border-color 0.15s, background 0.15s, color 0.15s;
     }
-    .btn-review:hover { border-color: #9CA3AF; background: var(--bg); }
+    .btn-review:hover { background: var(--red); color: #fff; }
 
     /* ── Detail view ──────────────────────────────────────── */
     #main-content { display: none; max-width: 1100px; margin: 0 auto; padding: 28px 20px 60px; }
@@ -669,7 +669,7 @@ function renderList(rows) {
       <div class="req-card" style="border-left-color:${borderColor}">
         <div class="req-card-body">
           <div class="req-card-top">
-            <span class="req-name">${esc(r.teacherName)}</span>
+            <span class="req-name">${esc(r.teacherName)} <span style="font-weight:400;color:var(--muted)">(${esc(r.gradeLevel)})</span></span>
             <span class="status-badge ${statusCls}">${esc(r.status)}</span>
             <span class="req-space">
               <span class="req-space-dot" style="background:${color}"></span>
@@ -919,8 +919,10 @@ async function loadCalendarEvents() {
 
     if (json.events) {
       json.events.forEach(ev => {
+        const s = new Date(ev.start), e2 = new Date(ev.end);
+        const displayTitle = shortTimeFromDate(s) + '-' + shortTimeFromDate(e2) + ' ' + ev.title;
         calendar.addEvent({
-          title:           ev.title,
+          title:           displayTitle,
           start:           ev.start,
           end:             ev.end,
           backgroundColor: SPACE_COLORS[ev.space] || '#888',
@@ -930,6 +932,7 @@ async function loadCalendarEvents() {
             space:       ev.space,
             spaceName:   SPACE_NAMES[ev.space] || ev.space,
             description: ev.description || '',
+            fullTitle:   ev.title,
             isRequest:   false
           }
         });
@@ -937,8 +940,12 @@ async function loadCalendarEvents() {
     }
 
     // The pending request itself — orange so it stands apart from space colors
+    const reqStart = new Date(rowData.date + 'T' + rowData.startTime);
+    const reqEnd   = new Date(rowData.date + 'T' + rowData.endTime);
+    const reqTitle = shortTimeFromDate(reqStart) + '-' + shortTimeFromDate(reqEnd) +
+                     ' ' + rowData.purpose + ' (' + rowData.teacherName + ')';
     calendar.addEvent({
-      title:           '📌 ' + rowData.teacherName,
+      title:           reqTitle,
       start:           rowData.date + 'T' + rowData.startTime,
       end:             rowData.date + 'T' + rowData.endTime,
       backgroundColor: 'rgba(249,115,22,0.15)',
@@ -949,6 +956,7 @@ async function loadCalendarEvents() {
         space:       rowData.spaceId,
         spaceName:   rowData.spaceName,
         description: rowData.purpose,
+        fullTitle:   rowData.purpose + ' (' + rowData.teacherName + ')',
         isRequest:   true
       }
     });
@@ -966,7 +974,7 @@ function showEventPopup(event, jsEvent) {
   const color     = props.isRequest ? REQUEST_COLOR : (SPACE_COLORS[props.space] || '#888');
   const start     = event.start ? formatTimeFromDate(event.start) : '';
   const end       = event.end   ? formatTimeFromDate(event.end)   : '';
-  const title     = event.title.replace(/^📌\s*/, '');
+  const title     = props.fullTitle || event.title.replace(/^📌\s*/, '');
 
   document.getElementById('popup-title').textContent = title;
   document.getElementById('popup-dot').style.background = color;
@@ -1061,6 +1069,14 @@ function formatDateShort(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr + 'T00:00:00');
   return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function shortTimeFromDate(dt) {
+  const h = dt.getHours();
+  const m = dt.getMinutes();
+  const suffix = h >= 12 ? 'P' : 'A';
+  const h12 = h % 12 || 12;
+  return m === 0 ? h12 + suffix : h12 + ':' + String(m).padStart(2, '0') + suffix;
 }
 
 function formatTime12(t) {
