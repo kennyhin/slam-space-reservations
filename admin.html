@@ -160,10 +160,14 @@
 
     .dash-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
     @media (max-width: 580px) { .dash-stats { grid-template-columns: repeat(2, 1fr); } }
-    .stat-card { background: var(--card); border-radius: 10px; padding: 14px 16px; border: 1px solid var(--border); }
+    .stat-card { background: var(--card); border-radius: 10px; padding: 14px 16px; border: 1.5px solid var(--border); cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .stat-card:hover { border-color: #9CA3AF; box-shadow: 0 1px 6px rgba(0,0,0,0.07); }
+    .stat-card.active { border-color: var(--red); box-shadow: 0 0 0 3px rgba(200,16,46,0.12); }
     .stat-label { font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
     .stat-value { font-family: 'Barlow Condensed', sans-serif; font-size: 30px; font-weight: 700; line-height: 1; }
     .stat-value.red { color: var(--red); }
+    .btn-view-cal { display: inline-flex; align-items: center; gap: 6px; font-family: 'Barlow Condensed', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); text-decoration: none; padding: 6px 12px; border: 1px solid var(--border); border-radius: 6px; transition: color 0.15s, border-color 0.15s; }
+    .btn-view-cal:hover { color: var(--text); border-color: #9CA3AF; }
 
     .dash-tabs { display: flex; border-bottom: 2px solid var(--border); margin-bottom: 16px; }
     .dash-tab {
@@ -369,8 +373,11 @@
 <!-- ── Dashboard ───────────────────────────────────────────── -->
 <div id="dashboard-screen">
   <div class="dash-header">
-    <div class="dash-title">Dashboard</div>
-    <div class="dash-subtitle">All reservation requests</div>
+    <div>
+      <div class="dash-title">Dashboard</div>
+      <div class="dash-subtitle">All reservation requests</div>
+    </div>
+    <a class="btn-view-cal" href="https://kennyhin.github.io/slam-space-reservations/" target="_blank">📅 View Calendar</a>
   </div>
   <div class="dash-stats" id="dash-stats"></div>
   <div class="dash-tabs">
@@ -497,6 +504,7 @@ let rowId        = new URLSearchParams(location.search).get('id');
 let actionDone   = false;
 let allRows      = [];
 let activeTab    = 'review';
+let activeFilter = null;  // null = no filter, or a status string
 
 // ── Auth ──────────────────────────────────────────────────
 
@@ -582,23 +590,33 @@ function renderDashboard() {
   const approved  = allRows.filter(r => r.status === 'Approved').length;
   const denied    = allRows.filter(r => r.status === 'Denied').length;
 
-  document.getElementById('dash-stats').innerHTML = `
-    <div class="stat-card"><div class="stat-label">Pending</div><div class="stat-value">${pending}</div></div>
-    <div class="stat-card"><div class="stat-label">Conflicts</div><div class="stat-value red">${conflicts}</div></div>
-    <div class="stat-card"><div class="stat-label">Approved</div><div class="stat-value">${approved}</div></div>
-    <div class="stat-card"><div class="stat-label">Denied</div><div class="stat-value">${denied}</div></div>
-  `;
+  const stats = [
+    { label: 'Pending',   value: pending,   key: 'Pending',   cls: '' },
+    { label: 'Conflicts', value: conflicts, key: 'CONFLICT',  cls: 'red' },
+    { label: 'Approved',  value: approved,  key: 'Approved',  cls: '' },
+    { label: 'Denied',    value: denied,    key: 'Denied',    cls: '' },
+  ];
+  document.getElementById('dash-stats').innerHTML = stats.map(s =>
+    `<div class="stat-card${activeFilter === s.key ? ' active' : ''}" onclick="filterByStatus('${s.key}')">
+       <div class="stat-label">${s.label}</div>
+       <div class="stat-value ${s.cls}">${s.value}</div>
+     </div>`
+  ).join('');
 
   const reviewRows = getReviewRows();
   document.getElementById('tab-review-count').textContent = reviewRows.length;
   document.getElementById('tab-all-count').textContent    = allRows.length;
 
-  renderList(activeTab === 'review' ? reviewRows : allRows);
+  renderList(getFilteredRows());
 }
 
 function getReviewRows() {
-  const rows = allRows.filter(r => r.status !== 'Approved' && r.status !== 'Denied');
-  // Conflicts first, then by date ascending
+  // CONFLICT - Notified is resolved — exclude it from Needs Review
+  const rows = allRows.filter(r =>
+    r.status !== 'Approved' &&
+    r.status !== 'Denied' &&
+    r.status !== 'CONFLICT - Notified'
+  );
   return rows.sort((a, b) => {
     const ac = a.status.startsWith('CONFLICT') ? 0 : 1;
     const bc = b.status.startsWith('CONFLICT') ? 0 : 1;
@@ -607,16 +625,41 @@ function getReviewRows() {
   });
 }
 
+function getFilteredRows() {
+  const base = activeTab === 'review' ? getReviewRows() : allRows;
+  if (!activeFilter) return base;
+  if (activeFilter === 'CONFLICT') return base.filter(r => r.status.startsWith('CONFLICT'));
+  return base.filter(r => r.status === activeFilter);
+}
+
+function filterByStatus(key) {
+  if (activeFilter === key) {
+    activeFilter = null;
+  } else {
+    activeFilter = key;
+    // Approved / Denied only appear in All tab
+    if (key === 'Approved' || key === 'Denied') {
+      activeTab = 'all';
+      document.getElementById('tab-review').classList.remove('active');
+      document.getElementById('tab-all').classList.add('active');
+    }
+  }
+  renderDashboard();
+}
+
 function renderList(rows) {
   const listEl = document.getElementById('dash-list');
   if (rows.length === 0) {
-    listEl.innerHTML = `<div class="dash-empty"><div class="dash-empty-icon">✅</div><div>Nothing to review — all caught up!</div></div>`;
+    const icon = activeFilter ? '🔍' : '✅';
+    const msg  = activeFilter ? 'No requests match this filter.' : 'Nothing to review — all caught up!';
+    listEl.innerHTML = `<div class="dash-empty"><div class="dash-empty-icon">${icon}</div><div>${msg}</div></div>`;
     return;
   }
   listEl.innerHTML = rows.map(r => {
     const color       = SPACE_COLORS[r.spaceId] || '#888';
     const isConflict  = r.status.startsWith('CONFLICT');
-    const borderColor = isConflict ? '#C8102E' : '#D1D5DB';
+    const isApproved  = r.status === 'Approved';
+    const borderColor = isConflict ? '#C8102E' : isApproved ? '#16A34A' : '#D1D5DB';
     const statusCls   = 'status-' + r.status.replace(/\s-\s/g, '-').replace(/\s/g, '-');
     const time        = formatTime12(r.startTime) + ' – ' + formatTime12(r.endTime);
     const meta        = formatDateShort(r.date) + ' · ' + time + (r.purpose ? ' · ' + esc(r.purpose) : '');
@@ -642,9 +685,10 @@ function renderList(rows) {
 
 function switchTab(tab) {
   activeTab = tab;
+  activeFilter = null;  // clear filter when switching tabs
   document.getElementById('tab-review').classList.toggle('active', tab === 'review');
   document.getElementById('tab-all').classList.toggle('active', tab === 'all');
-  renderList(tab === 'review' ? getReviewRows() : allRows);
+  renderDashboard();
 }
 
 // ── Detail view ───────────────────────────────────────────

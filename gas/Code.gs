@@ -19,6 +19,7 @@ const ALLOWED_DOMAIN = 'slamnv.org';
 const ADMIN_EMAIL    = 'kenny.hin@slamnv.org';
 const DAYS_AHEAD     = 90;
 const ADMIN_PAGE_URL = 'https://kennyhin.github.io/slam-space-reservations/admin.html';
+const SITE_URL       = 'https://kennyhin.github.io/slam-space-reservations/';
 
 // Admin password auth (used by admin.html — no Google token required for admin routes)
 const ADMIN_KEY    = 'slam123';
@@ -353,12 +354,26 @@ function getPendingRows(e) {
   var sheet = getSheet();
   if (!sheet) return jsonResp({ rows: [] });
 
-  var values = sheet.getDataRange().getValues();
-  var rows   = [];
+  var today  = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  var values     = sheet.getDataRange().getValues();
+  var rows       = [];
+  var deleteIdxs = [];  // sheet row indices to delete (1-based)
+
   for (var i = 1; i < values.length; i++) {
     var r  = values[i];
     var id = String(r[COL.ROW_ID - 1] || '');
     if (!id) continue;
+
+    var dateStr = normalizeDate(r[COL.DATE - 1]);
+    var rowDate = dateStr ? new Date(dateStr + 'T00:00:00') : null;
+
+    if (rowDate && rowDate < today) {
+      deleteIdxs.push(i + 1);  // values[i] = sheet row i+1
+      continue;
+    }
+
     rows.push({
       id:            id,
       teacherEmail:  r[COL.SUBMITTED_BY   - 1],
@@ -367,13 +382,18 @@ function getPendingRows(e) {
       purpose:       r[COL.PURPOSE        - 1],
       spaceId:       r[COL.SPACE          - 1],
       spaceName:     SPACE_LABELS[r[COL.SPACE - 1]] || r[COL.SPACE - 1],
-      date:          normalizeDate(r[COL.DATE       - 1]),
+      date:          dateStr,
       startTime:     normalizeTime(r[COL.START_TIME - 1]),
       endTime:       normalizeTime(r[COL.END_TIME   - 1]),
       status:        String(r[COL.STATUS - 1] || ''),
       conflictNotes: String(r[COL.CONFLICT_NOTES - 1] || ''),
       timestamp:     r[COL.TIMESTAMP - 1] ? new Date(r[COL.TIMESTAMP - 1]).toISOString() : ''
     });
+  }
+
+  // Delete past rows bottom-up so indices stay valid
+  for (var d = deleteIdxs.length - 1; d >= 0; d--) {
+    sheet.deleteRow(deleteIdxs[d]);
   }
 
   // Newest first
@@ -430,6 +450,18 @@ function approveRowApi(data) {
   statusCell.setValue('Approved').setBackground('#DCFCE7').setFontColor('#166534').setFontWeight('normal');
   sheet.getRange(row.rowIndex, COL.APPROVE).setValue(true).setBackground('#DCFCE7');
 
+  // Check for other-space events on the same day (FYI only)
+  var fyiEvents  = getOtherSpaceEventsOnDate(row.spaceId, row.date);
+  var fyiSection = '';
+  if (fyiEvents.length > 0) {
+    fyiSection =
+      '\nℹ️ FYI — OTHER SPACES HAVE EVENTS ON THIS DAY\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+      fyiEvents.join('\n') + '\n' +
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
+      'These are at different spaces and do not affect your reservation.\n';
+  }
+
   // Email teacher
   MailApp.sendEmail({
     to: row.teacherEmail,
@@ -447,6 +479,7 @@ function approveRowApi(data) {
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
       'This reservation is now on the SLAM Reservations calendar.\n' +
       (calNote ? '\nNote: ' + calNote + '\n' : '') +
+      fyiSection +
       '\n— SLAM Athletics Administration'
   });
 
@@ -527,7 +560,8 @@ function sendConflictEmailApi(data) {
       'Time:     ' + formatTime12(row.startTime) + ' – ' + formatTime12(row.endTime) + '\n' +
       '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n' +
       (row.conflictNotes ? 'CONFLICT\n' + row.conflictNotes + '\n\n' : '') +
-      'Please visit the SLAM Reservations site to submit a new request for a different time or date.\n\n' +
+      'Please visit the SLAM Reservations site to submit a new request for a different time or date:\n' +
+      SITE_URL + '\n\n' +
       '— SLAM Athletics Administration'
   });
 
