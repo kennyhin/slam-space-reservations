@@ -77,9 +77,12 @@ function generateRowId() {
 function doGet(e) {
   try {
     var action = (e && e.parameter && e.parameter.action) || '';
-    if (action === 'getEvents')      return getEvents(e);
-    if (action === 'getAdminRow')    return getAdminRow(e);
-    if (action === 'getPendingRows') return getPendingRows(e);
+    if (action === 'getEvents')         return getEvents(e);
+    if (action === 'getAdminRow')       return getAdminRow(e);
+    if (action === 'getPendingRows')    return getPendingRows(e);
+    if (action === 'approveRow')        return approveRowApi(e.parameter);
+    if (action === 'denyRow')           return denyRowApi(e.parameter);
+    if (action === 'sendConflictEmail') return sendConflictEmailApi(e.parameter);
     return jsonResp({ error: 'Invalid action' });
   } catch (err) {
     return jsonResp({ error: err && err.message ? err.message : String(err) });

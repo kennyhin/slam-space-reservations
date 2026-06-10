@@ -735,7 +735,7 @@ async function handleApprove() {
   if (actionDone) return;
   setButtonsLoading(true);
   try {
-    const res  = await apiPost({ action: 'approveRow', id: rowId });
+    const res  = await apiGet({ action: 'approveRow', id: rowId });
     const json = await res.json();
     if (json.error === 'conflict') {
       rowData.status        = 'CONFLICT';
@@ -782,7 +782,7 @@ async function confirmDeny() {
   confirmBtn.textContent = 'Sending…';
   confirmBtn.disabled    = true;
   try {
-    const res  = await apiPost({ action: 'denyRow', id: rowId, reason });
+    const res  = await apiGet({ action: 'denyRow', id: rowId, reason });
     const json = await res.json();
     if (json.error) { alert('Error: ' + json.error); confirmBtn.textContent = '✉ Send Denial Email'; confirmBtn.disabled = false; return; }
     actionDone = true;
@@ -803,7 +803,7 @@ async function handleConflictEmail() {
   if (!confirm('Send a conflict notification email to ' + rowData.teacherEmail + '?')) return;
   setButtonsLoading(true);
   try {
-    const res  = await apiPost({ action: 'sendConflictEmail', id: rowId });
+    const res  = await apiGet({ action: 'sendConflictEmail', id: rowId });
     const json = await res.json();
     if (json.error) { alert('Error: ' + json.error); setButtonsLoading(false); return; }
     actionDone = true;
@@ -956,12 +956,13 @@ document.addEventListener('click', () => {
 
 // ── Helpers ───────────────────────────────────────────────
 
-function apiPost(body) {
-  return fetch(CONFIG.SCRIPT_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ ...body, adminKey: 'slam123', adminEmail: adminSession.email })
-  });
+function apiGet(params) {
+  const qs = new URLSearchParams({
+    ...params,
+    adminKey:   'slam123',
+    adminEmail: adminSession.email
+  }).toString();
+  return fetch(CONFIG.SCRIPT_URL + '?' + qs);
 }
 
 function setButtonsLoading(loading) {
