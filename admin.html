@@ -18,6 +18,7 @@
       --red:      #C8102E;
       --red-dk:   #9B0020;
       --orange:   #F97316;
+      --purple:   #7C3AED;
       --bg:       #F3F4F6;
       --card:     #FFFFFF;
       --border:   #E5E7EB;
@@ -298,13 +299,13 @@
     #admin-calendar .fc-toolbar-title { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; }
     #admin-calendar .fc-button { background: var(--red) !important; border-color: var(--red) !important; font-size: 12px !important; padding: 4px 8px !important; }
     #admin-calendar .fc-daygrid-event { font-size: 11px; border-radius: 3px; cursor: pointer; }
-    #admin-calendar .fc-highlight { background: rgba(249,115,22,0.12) !important; }
+    #admin-calendar .fc-highlight { background: rgba(124,58,237,0.12) !important; }
 
     .cal-legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 10px 16px 14px; border-top: 1px solid var(--border); }
     .legend-item { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted); }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-    .legend-item.this-request { color: var(--orange); font-weight: 600; }
-    .legend-dot.this-request  { background: var(--orange); box-shadow: 0 0 0 2px rgba(249,115,22,0.25); }
+    .legend-item.this-request { color: var(--purple); font-weight: 600; }
+    .legend-dot.this-request  { background: var(--purple); box-shadow: 0 0 0 2px rgba(124,58,237,0.25); }
 
     /* ── Event popup ──────────────────────────────────────── */
     #event-popup {
@@ -490,7 +491,7 @@ const SPACE_NAMES = {
   'es-turf':           'ES Turf',
   'kinder-playground': 'Kinder Playground'
 };
-const REQUEST_COLOR = '#F97316';  // orange — distinct from all three space colors
+const REQUEST_COLOR = '#7C3AED';  // purple — distinct from all three space colors
 
 const ALLOWED_ADMINS = [
   { email: 'kenny.hin@slamnv.org', name: 'Kenny Hin' },
@@ -878,7 +879,7 @@ function initCalendar() {
     height:        'auto',
     headerToolbar: { left: 'prev', center: 'title', right: 'next' },
     eventDisplay:  'block',
-    dayMaxEvents:  3,
+    dayMaxEvents:  false,
 
     dayCellDidMount(info) {
       const d = info.date;
@@ -887,7 +888,7 @@ function initCalendar() {
         d.getMonth()    === targetDate.getMonth()    &&
         d.getDate()     === targetDate.getDate()
       ) {
-        info.el.style.background    = 'rgba(249,115,22,0.08)';
+        info.el.style.background    = 'rgba(124,58,237,0.08)';
         info.el.style.borderRadius  = '4px';
       }
     },
@@ -948,9 +949,9 @@ async function loadCalendarEvents() {
       title:           reqTitle,
       start:           rowData.date + 'T' + rowData.startTime,
       end:             rowData.date + 'T' + rowData.endTime,
-      backgroundColor: 'rgba(249,115,22,0.15)',
+      backgroundColor: 'rgba(124,58,237,0.15)',
       borderColor:     REQUEST_COLOR,
-      textColor:       '#C2410C',
+      textColor:       '#5B21B6',
       display:         'block',
       extendedProps: {
         space:       rowData.spaceId,
