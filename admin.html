@@ -223,8 +223,28 @@
     .req-group-toggle { background: none; border: 1.5px solid #7C3AED; border-radius: 6px; padding: 4px 10px; font-size: 12px; font-weight: 600; color: #7C3AED; cursor: pointer; white-space: nowrap; transition: background 0.12s, color 0.12s; }
     .req-group-toggle:hover { background: #7C3AED; color: #fff; }
     .req-group-body { border-top: 1px solid var(--border); padding: 10px 12px; display: none; }
-    .req-group-body .req-card { margin-bottom: 6px; border-radius: 6px; }
-    .req-group-body .req-card:last-child { margin-bottom: 0; }
+    .req-group-body .req-card { border-radius: 6px; }
+    .req-card-wrapper { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+    .req-card-wrapper:last-child { margin-bottom: 0; }
+    .req-card-wrapper .req-card { flex: 1; }
+    .row-checkbox { width: 16px; height: 16px; cursor: pointer; flex-shrink: 0; accent-color: #7C3AED; }
+    .row-checkbox:disabled { cursor: default; opacity: 0.35; }
+    .bulk-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 6px 4px 10px; border-bottom: 1px solid var(--border); margin-bottom: 8px; }
+    .bulk-select-links { font-size: 12px; color: var(--muted); }
+    .bulk-select-links a { color: var(--muted); text-decoration: underline; cursor: pointer; }
+    .bulk-select-links a:hover { color: var(--text); }
+    .bulk-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .bulk-progress { font-size: 12px; color: var(--muted); font-style: italic; }
+    .btn-bulk-approve { background: #16A34A; color: #fff; border: none; border-radius: 5px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.12s; }
+    .btn-bulk-approve:disabled { opacity: 0.35; cursor: default; }
+    .btn-bulk-approve:not(:disabled):hover { opacity: 0.82; }
+    .btn-bulk-deny { background: var(--red); color: #fff; border: none; border-radius: 5px; padding: 5px 12px; font-size: 12px; font-weight: 600; cursor: pointer; transition: opacity 0.12s; }
+    .btn-bulk-deny:disabled { opacity: 0.35; cursor: default; }
+    .btn-bulk-deny:not(:disabled):hover { opacity: 0.82; }
+    .btn-grp-quick-approve { background: #16A34A; color: #fff; border: none; border-radius: 5px; padding: 3px 9px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: opacity 0.12s; }
+    .btn-grp-quick-approve:hover { opacity: 0.82; }
+    .btn-grp-quick-deny { background: var(--red); color: #fff; border: none; border-radius: 5px; padding: 3px 9px; font-size: 11px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: opacity 0.12s; }
+    .btn-grp-quick-deny:hover { opacity: 0.82; }
     .btn-review {
       background: none;
       border: 1.5px solid var(--red);
@@ -520,6 +540,8 @@ let actionDone   = false;
 let allRows      = [];
 let activeTab    = 'review';
 let activeFilter = null;  // null = no filter, or a status string
+const _groupData      = {};  // groupId → row array, populated during renderList
+const groupSelections = {};  // groupId → Set of selected rowIds
 
 // ── Auth ──────────────────────────────────────────────────
 
@@ -721,14 +743,30 @@ function renderList(rows) {
     const approved  = groupRows.filter(r => r.status === 'Approved').length;
     const pending   = groupRows.filter(r => r.status === 'Pending').length;
 
+    const safeId = esc(groupId);
+    _groupData[safeId] = groupRows;
+
     let statusSummary = '';
     if (conflicts) statusSummary += `<span class="status-badge status-CONFLICT">${conflicts} Conflict${conflicts > 1 ? 's' : ''}</span> `;
     if (pending)   statusSummary += `<span class="status-badge status-Pending">${pending} Pending</span> `;
     if (approved)  statusSummary += `<span class="status-badge status-Approved">${approved} Approved</span>`;
 
-    const dateRange = formatDateShort(first.date) + ' – ' + formatDateShort(last.date);
-    const innerCards = groupRows.map(renderSingleCard).join('');
-    const safeId = esc(groupId);
+    const hasPending = pending > 0 || conflicts > 0;
+    const quickBtns  = hasPending ? `
+              <button class="btn-grp-quick-approve" title="Approve all pending" onclick="event.stopPropagation();quickApproveGroup('${safeId}')">✓ All</button>
+              <button class="btn-grp-quick-deny"    title="Deny all pending"    onclick="event.stopPropagation();quickDenyGroup('${safeId}')">✕ All</button>` : '';
+
+    const dateRange  = formatDateShort(first.date) + ' – ' + formatDateShort(last.date);
+    const innerCards = groupRows.map(r => {
+      const canSelect = r.status !== 'Approved' && r.status !== 'Denied';
+      return `<div class="req-card-wrapper">
+        <input type="checkbox" class="row-checkbox"
+          id="cb-${esc(r.id)}" data-row-id="${esc(r.id)}" data-status="${esc(r.status)}"
+          ${canSelect ? '' : 'disabled'}
+          onchange="toggleGroupRowSelect('${safeId}','${esc(r.id)}',this.checked)" />
+        ${renderSingleCard(r)}
+      </div>`;
+    }).join('');
 
     return `
       <div class="req-group-card" id="grp-${safeId}">
@@ -744,11 +782,23 @@ function renderList(rows) {
             </div>
           </div>
           <div class="req-group-right">
-            ${statusSummary}
+            ${statusSummary}${quickBtns}
             <button class="req-group-toggle" id="grp-btn-${safeId}">▾ ${n} Practices</button>
           </div>
         </div>
         <div class="req-group-body" id="grp-body-${safeId}">
+          <div class="bulk-bar">
+            <div class="bulk-select-links">
+              <a href="#" onclick="selectAllGroup('${safeId}');return false">Select All Pending</a>
+              &nbsp;·&nbsp;
+              <a href="#" onclick="clearGroupSelection('${safeId}');return false">Clear</a>
+            </div>
+            <div class="bulk-actions">
+              <span class="bulk-progress" id="bulk-progress-${safeId}"></span>
+              <button class="btn-bulk-approve" id="bulk-approve-${safeId}" disabled onclick="bulkApproveSelected('${safeId}')">Approve Selected (0)</button>
+              <button class="btn-bulk-deny"    id="bulk-deny-${safeId}"    disabled onclick="bulkDenySelected('${safeId}')">Deny Selected (0)</button>
+            </div>
+          </div>
           ${innerCards}
         </div>
       </div>`;
@@ -772,6 +822,90 @@ function toggleGroup(groupId) {
   body.style.display = open ? 'none' : 'block';
   const n = body.querySelectorAll('.req-card').length;
   btn.textContent = open ? `▾ ${n} Practices` : `▴ Collapse`;
+}
+
+// ── Bulk approve / deny helpers ───────────────────────────
+
+function toggleGroupRowSelect(groupId, rowId, checked) {
+  if (!groupSelections[groupId]) groupSelections[groupId] = new Set();
+  if (checked) groupSelections[groupId].add(rowId);
+  else         groupSelections[groupId].delete(rowId);
+  _updateBulkBar(groupId);
+}
+
+function selectAllGroup(groupId) {
+  if (!groupSelections[groupId]) groupSelections[groupId] = new Set();
+  document.querySelectorAll('#grp-body-' + groupId + ' .row-checkbox:not([disabled])').forEach(cb => {
+    cb.checked = true;
+    groupSelections[groupId].add(cb.dataset.rowId);
+  });
+  _updateBulkBar(groupId);
+}
+
+function clearGroupSelection(groupId) {
+  groupSelections[groupId] = new Set();
+  document.querySelectorAll('#grp-body-' + groupId + ' .row-checkbox').forEach(cb => cb.checked = false);
+  _updateBulkBar(groupId);
+}
+
+function _updateBulkBar(groupId) {
+  const n = groupSelections[groupId] ? groupSelections[groupId].size : 0;
+  const a = document.getElementById('bulk-approve-' + groupId);
+  const d = document.getElementById('bulk-deny-'    + groupId);
+  if (a) { a.textContent = 'Approve Selected (' + n + ')'; a.disabled = n === 0; }
+  if (d) { d.textContent = 'Deny Selected ('    + n + ')'; d.disabled = n === 0; }
+}
+
+async function _processGroupRows(groupId, rowIds, action, reason) {
+  const prog = document.getElementById('bulk-progress-' + groupId);
+  ['bulk-approve-' + groupId, 'bulk-deny-' + groupId].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = true;
+  });
+  const verb = action === 'approveRow' ? 'Approving' : 'Denying';
+  for (let i = 0; i < rowIds.length; i++) {
+    if (prog) prog.textContent = `${verb} ${i + 1} of ${rowIds.length}…`;
+    const params = { action, id: rowIds[i] };
+    if (reason) params.reason = reason;
+    try { await apiGet(params).then(r => r.json()); } catch(e) {}
+  }
+  if (prog) prog.textContent = '';
+  groupSelections[groupId] = new Set();
+  renderDashboard();
+}
+
+// Header quick-action buttons (approve/deny ALL pending in group)
+function quickApproveGroup(groupId) {
+  const rows = _groupData[groupId] || [];
+  const ids  = rows.filter(r => r.status === 'Pending').map(r => r.id);
+  if (!ids.length) return;
+  if (!confirm(`Approve all ${ids.length} pending practice date(s)?`)) return;
+  _processGroupRows(groupId, ids, 'approveRow', null);
+}
+
+function quickDenyGroup(groupId) {
+  const rows = _groupData[groupId] || [];
+  const ids  = rows.filter(r => r.status === 'Pending' || r.status.startsWith('CONFLICT')).map(r => r.id);
+  if (!ids.length) return;
+  const reason = prompt(`Deny ${ids.length} practice date(s). Reason for denial:`);
+  if (reason === null) return;
+  _processGroupRows(groupId, ids, 'denyRow', reason || 'No reason provided.');
+}
+
+// Body selected-rows buttons
+function bulkApproveSelected(groupId) {
+  const sel = groupSelections[groupId];
+  if (!sel || !sel.size) return;
+  if (!confirm(`Approve ${sel.size} selected practice date(s)?`)) return;
+  _processGroupRows(groupId, Array.from(sel), 'approveRow', null);
+}
+
+function bulkDenySelected(groupId) {
+  const sel = groupSelections[groupId];
+  if (!sel || !sel.size) return;
+  const reason = prompt(`Deny ${sel.size} selected practice date(s). Reason for denial:`);
+  if (reason === null) return;
+  _processGroupRows(groupId, Array.from(sel), 'denyRow', reason || 'No reason provided.');
 }
 
 function switchTab(tab) {

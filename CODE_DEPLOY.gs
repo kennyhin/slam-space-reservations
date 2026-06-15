@@ -640,11 +640,21 @@ function buildEmail(plainBody, links) {
 }
 
 // Returns { 'YYYY-MM-DD': true } for every date in the Holidays sheet.
+// Auto-creates the Holidays sheet with instructions if it doesn't exist yet.
 function getHolidayDates() {
   var result = {};
   try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Holidays');
-    if (!sheet) return result;
+    var ss    = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getSheetByName('Holidays');
+    if (!sheet) {
+      sheet = ss.insertSheet('Holidays');
+      sheet.getRange(1, 1).setValue('Holiday / School Closure Dates')
+        .setFontWeight('bold').setBackground('#1a1a2e').setFontColor('#ffffff');
+      sheet.getRange(2, 1).setValue('(Enter dates below in any format, e.g. 2026-09-07 or 9/7/2026)')
+        .setFontColor('#888888').setFontStyle('italic');
+      sheet.setColumnWidth(1, 260);
+      return result;
+    }
     var values = sheet.getDataRange().getValues();
     for (var i = 0; i < values.length; i++) {
       var ds = normalizeDate(values[i][0]);
