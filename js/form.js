@@ -1,6 +1,9 @@
 // ============================================================
-// form.js — 5-step reservation wizard with multi-date support
+// form.js — 5-step reservation wizard (teacher + coach flows)
 // ============================================================
+
+const DAY_NAMES = ['', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+const DAY_NAMES_SHORT = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
 const ReservationForm = {
   currentStep: 1,
@@ -8,17 +11,17 @@ const ReservationForm = {
   data: {
     teacherName: '',
     gradeLevel: '',
+    isCoach: false,
     purpose: '',
     space: '',
-    // entries: array of { date, startTime, endTime }
     entries: [],
+    coachDays: [],   // [dayNum1, dayNum2], 1=Mon … 5=Fri
+    groupId: null,
   },
 
   init() {
-    // Pre-fill date input from URL param (?date=YYYY-MM-DD) — user picks their own time
     const urlDate = new URLSearchParams(window.location.search).get('date');
     this._urlDate = urlDate || null;
-
     this._buildSteps();
     this._showStep(1);
     this._updatePreview();
@@ -51,36 +54,52 @@ const ReservationForm = {
         <div class="progress-line"><div class="progress-fill" id="progress-fill"></div></div>
       </div>
 
-      <!-- Step 1: Teacher Info -->
+      <!-- Step 1: Name + Role -->
       <div class="form-step" id="step-1">
         <h2 class="step-title">Who's making this reservation?</h2>
-        <p class="step-subtitle">Enter your name and grade level.</p>
+        <p class="step-subtitle">Enter your name and select your role.</p>
         <div class="field-group">
           <label class="field-label">Your Full Name</label>
           <input type="text" id="teacherName" class="text-input" placeholder="e.g. Ms. Johnson"
             value="${this._escape(this.data.teacherName)}" autocomplete="name" />
         </div>
         <div class="field-group">
-          <label class="field-label">Grade Level</label>
+          <label class="field-label">Grade Level / Role</label>
           <div class="bubble-group" id="grade-bubbles">${gradeOptions}</div>
         </div>
       </div>
 
-      <!-- Step 2: Purpose -->
+      <!-- Step 2: Purpose — dual mode -->
       <div class="form-step" id="step-2">
-        <h2 class="step-title">What is this reservation for?</h2>
-        <p class="step-subtitle">Keep it short — 5 words or less.</p>
-        <div class="field-group">
-          <label class="field-label">Reservation Purpose</label>
-          <textarea id="purpose" class="text-input textarea" rows="4"
-            placeholder="e.g. Assembly, testing, practice, PE class...">${this._escape(this.data.purpose)}</textarea>
+
+        <!-- Teacher mode -->
+        <div id="purpose-normal">
+          <h2 class="step-title">What is this reservation for?</h2>
+          <p class="step-subtitle">Keep it short — 5 words or less.</p>
+          <div class="field-group">
+            <label class="field-label">Reservation Purpose</label>
+            <textarea id="purpose" class="text-input textarea" rows="4"
+              placeholder="e.g. Assembly, testing, practice, PE class...">${this._escape(this.data.purpose)}</textarea>
+          </div>
+          <div class="suggestion-chips">
+            <span class="chip-label">Quick picks:</span>
+            <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Popsicle Party')">🍭 Popsicle Party</button>
+            <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Water Day')">💧 Water Day</button>
+            <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Fingerpainting')">🎨 Fingerpainting</button>
+            <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Tie Dye Party')">🌈 Tie Dye Party</button>
+          </div>
         </div>
-        <div class="suggestion-chips">
-          <span class="chip-label">Quick picks:</span>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Popsicle Party')">🍭 Popsicle Party</button>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Water Day')">💧 Water Day</button>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Fingerpainting')">🎨 Fingerpainting</button>
-          <button type="button" class="suggestion-chip" onclick="ReservationForm._fillPurpose('Tie Dye Party')">🌈 Tie Dye Party</button>
+
+        <!-- Coach mode -->
+        <div id="purpose-coach" style="display:none">
+          <h2 class="step-title">What type of booking?</h2>
+          <p class="step-subtitle">Select your reservation type.</p>
+          <div class="bubble-group">
+            <button type="button" class="bubble-btn" data-purpose="Practice"
+              onclick="ReservationForm._onCoachPurposeSelect('Practice')">🏃 Practice</button>
+            <button type="button" class="bubble-btn" data-purpose="Banquet"
+              onclick="ReservationForm._onCoachPurposeSelect('Banquet')">🎉 Banquet</button>
+          </div>
         </div>
       </div>
 
@@ -91,38 +110,103 @@ const ReservationForm = {
         <div class="space-bubble-group" id="space-bubbles">${spaceOptions}</div>
       </div>
 
-      <!-- Step 4: Date & Time (multi-entry) -->
+      <!-- Step 4: Date & Time — dual mode -->
       <div class="form-step" id="step-4">
-        <h2 class="step-title">When do you need it?</h2>
-        <p class="step-subtitle">Add one or more dates and times for your reservation.</p>
 
-        <!-- Single entry input form -->
-        <div id="entry-form">
-          <div class="field-group">
-            <label class="field-label">Date</label>
-            <input type="date" id="resDate" class="text-input" min="${this._todayStr()}" />
-          </div>
-          <div class="time-row">
+        <!-- Normal date/time entry (teachers + coach banquet) -->
+        <div id="date-normal">
+          <h2 class="step-title">When do you need it?</h2>
+          <p class="step-subtitle">Add one or more dates and times for your reservation.</p>
+          <div id="entry-form">
             <div class="field-group">
-              <label class="field-label">Start Time</label>
-              ${this._buildTimePicker('startTime', '08:00')}
+              <label class="field-label">Date</label>
+              <input type="date" id="resDate" class="text-input" min="${this._todayStr()}" />
             </div>
-            <div class="field-group">
-              <label class="field-label">End Time</label>
-              ${this._buildTimePicker('endTime', '09:00')}
+            <div class="time-row">
+              <div class="field-group">
+                <label class="field-label">Start Time</label>
+                ${this._buildTimePicker('startTime', '08:00')}
+              </div>
+              <div class="field-group">
+                <label class="field-label">End Time</label>
+                ${this._buildTimePicker('endTime', '09:00')}
+              </div>
             </div>
+            <button type="button" class="nav-btn primary" id="btn-add-entry"
+              onclick="ReservationForm._addEntry()" style="margin-top:10px;width:100%">
+              ＋ Add Date
+            </button>
           </div>
-          <button type="button" class="nav-btn primary" id="btn-add-entry" onclick="ReservationForm._addEntry()" style="margin-top:10px;width:100%">
-            ＋ Add Date
-          </button>
+          <div id="entries-list" style="margin-top:20px"></div>
+          <div id="entries-empty" style="text-align:center;padding:16px;color:#AAAAAA;font-size:13px;">
+            No dates added yet. Pick a date and time above, then click "Add Date".
+          </div>
         </div>
 
-        <!-- List of added entries -->
-        <div id="entries-list" style="margin-top:20px"></div>
+        <!-- Coach practice recurring builder -->
+        <div id="date-coach-practice" style="display:none">
+          <h2 class="step-title">Build your practice schedule</h2>
+          <p class="step-subtitle">Choose 2 days, set times for each, then pick your season dates.</p>
 
-        <!-- Empty state -->
-        <div id="entries-empty" style="text-align:center;padding:16px;color:#AAAAAA;font-size:13px;">
-          No dates added yet. Pick a date and time above, then click "Add Date".
+          <div class="field-group">
+            <label class="field-label">Practice Days
+              <span style="font-weight:400;color:var(--muted);font-size:12px"> — select exactly 2</span>
+            </label>
+            <div class="bubble-group">
+              ${[1,2,3,4,5].map(d => `
+                <button type="button" class="bubble-btn day-bubble" data-day="${d}"
+                  onclick="ReservationForm._onDayBubbleClick(${d})">${DAY_NAMES_SHORT[d]}</button>
+              `).join('')}
+            </div>
+          </div>
+
+          <div id="coach-day-times" style="display:none;margin-top:4px">
+            <div class="field-group">
+              <label class="field-label" id="coach-day1-label">Day 1 Times</label>
+              <div class="time-row">
+                <div class="field-group" style="flex:1">
+                  <label class="field-label" style="font-size:11px;color:var(--muted)">Start</label>
+                  ${this._buildTimePicker('coachDay1Start', '15:30')}
+                </div>
+                <div class="field-group" style="flex:1">
+                  <label class="field-label" style="font-size:11px;color:var(--muted)">End</label>
+                  ${this._buildTimePicker('coachDay1End', '17:00')}
+                </div>
+              </div>
+            </div>
+            <div class="field-group">
+              <label class="field-label" id="coach-day2-label">Day 2 Times</label>
+              <div class="time-row">
+                <div class="field-group" style="flex:1">
+                  <label class="field-label" style="font-size:11px;color:var(--muted)">Start</label>
+                  ${this._buildTimePicker('coachDay2Start', '15:30')}
+                </div>
+                <div class="field-group" style="flex:1">
+                  <label class="field-label" style="font-size:11px;color:var(--muted)">End</label>
+                  ${this._buildTimePicker('coachDay2End', '17:00')}
+                </div>
+              </div>
+            </div>
+            <div class="time-row">
+              <div class="field-group" style="flex:1">
+                <label class="field-label">First Practice</label>
+                <input type="date" id="coach-start-date" class="text-input" min="${this._todayStr()}" />
+              </div>
+              <div class="field-group" style="flex:1">
+                <label class="field-label">Last Practice</label>
+                <input type="date" id="coach-end-date" class="text-input" />
+              </div>
+            </div>
+            <button type="button" class="nav-btn primary" style="width:100%;margin-top:10px"
+              onclick="ReservationForm._generatePracticeSchedule()">
+              Generate Schedule →
+            </button>
+          </div>
+
+          <div id="coach-entries-list" style="margin-top:16px"></div>
+          <div id="coach-entries-empty" style="text-align:center;padding:20px 16px;color:#AAAAAA;font-size:13px;margin-top:8px">
+            Select 2 days and click "Generate Schedule" to see your practice dates.
+          </div>
         </div>
       </div>
 
@@ -131,12 +215,12 @@ const ReservationForm = {
         <h2 class="step-title">Review your request</h2>
         <p class="step-subtitle">Make sure everything looks right before submitting.</p>
         <div class="review-card" id="review-card"></div>
-        <p class="submit-note">You'll receive an email confirmation shortly after submitting. Each date will be individually reviewed for approval.</p>
+        <p class="submit-note" id="submit-note">You'll receive an email confirmation shortly after submitting. Each date will be individually reviewed for approval.</p>
       </div>
 
       <!-- Navigation -->
       <div class="form-nav">
-        <button type="button" class="nav-btn secondary" id="btn-back" onclick="ReservationForm.back()">← Back</button>
+        <button type="button" class="nav-btn secondary" id="btn-back"   onclick="ReservationForm.back()">← Back</button>
         <button type="button" class="nav-btn primary"   id="btn-next"   onclick="ReservationForm.next()">Next →</button>
         <button type="button" class="nav-btn submit"    id="btn-submit" onclick="ReservationForm.submit()">Submit Request</button>
       </div>
@@ -150,50 +234,219 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
-  // Multi-Entry Management
+  // Coach: grade selection triggers coach mode
   // ----------------------------------------------------------
+  _onGradeSelect(value) {
+    const wasCoach = this.data.isCoach;
+    this.data.gradeLevel = value;
+    this.data.isCoach = (value === 'Coach');
 
+    if (wasCoach && !this.data.isCoach) {
+      this.data.purpose   = '';
+      this.data.coachDays = [];
+      this.data.entries   = [];
+      this.data.groupId   = null;
+      const purposeEl = document.getElementById('purpose');
+      if (purposeEl) purposeEl.value = '';
+    }
+    this._updateStep2Mode();
+    this._updateStep4Mode();
+    this._updatePreview();
+  },
+
+  _updateStep2Mode() {
+    const normalEl = document.getElementById('purpose-normal');
+    const coachEl  = document.getElementById('purpose-coach');
+    if (!normalEl || !coachEl) return;
+    normalEl.style.display = this.data.isCoach ? 'none' : 'block';
+    coachEl.style.display  = this.data.isCoach ? 'block' : 'none';
+  },
+
+  _updateStep4Mode() {
+    const normalEl  = document.getElementById('date-normal');
+    const coachEl   = document.getElementById('date-coach-practice');
+    const showCoach = this.data.isCoach && this.data.purpose === 'Practice';
+    if (!normalEl || !coachEl) return;
+    normalEl.style.display = showCoach ? 'none' : 'block';
+    coachEl.style.display  = showCoach ? 'block' : 'none';
+  },
+
+  // ----------------------------------------------------------
+  // Coach: purpose selection (Practice / Banquet)
+  // ----------------------------------------------------------
+  _onCoachPurposeSelect(purpose) {
+    const wasPractice = this.data.purpose === 'Practice';
+    this.data.purpose = purpose;
+
+    if (wasPractice && purpose !== 'Practice') {
+      this.data.entries   = [];
+      this.data.coachDays = [];
+      this.data.groupId   = null;
+    }
+
+    document.querySelectorAll('#purpose-coach .bubble-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.purpose === purpose);
+    });
+
+    this._updateStep4Mode();
+    this._updatePreview();
+  },
+
+  // ----------------------------------------------------------
+  // Coach: day bubble selection (exactly 2)
+  // ----------------------------------------------------------
+  _onDayBubbleClick(dayNum) {
+    const idx = this.data.coachDays.indexOf(dayNum);
+    if (idx >= 0) {
+      this.data.coachDays.splice(idx, 1);
+    } else {
+      if (this.data.coachDays.length >= 2) return;
+      this.data.coachDays.push(dayNum);
+      this.data.coachDays.sort((a, b) => a - b);
+    }
+
+    document.querySelectorAll('.day-bubble').forEach(btn => {
+      btn.classList.toggle('selected', this.data.coachDays.includes(parseInt(btn.dataset.day)));
+    });
+
+    const timesEl = document.getElementById('coach-day-times');
+    if (timesEl) timesEl.style.display = this.data.coachDays.length === 2 ? 'block' : 'none';
+
+    if (this.data.coachDays.length === 2) {
+      const lbl1 = document.getElementById('coach-day1-label');
+      const lbl2 = document.getElementById('coach-day2-label');
+      if (lbl1) lbl1.textContent = DAY_NAMES[this.data.coachDays[0]] + ' Times';
+      if (lbl2) lbl2.textContent = DAY_NAMES[this.data.coachDays[1]] + ' Times';
+      // Reset entries when days change
+      this.data.entries = [];
+      this.data.groupId = null;
+      this._renderCoachEntriesList();
+    }
+  },
+
+  // ----------------------------------------------------------
+  // Coach: generate practice schedule
+  // ----------------------------------------------------------
+  async _generatePracticeSchedule() {
+    this._clearMessages();
+
+    const [d1, d2] = this.data.coachDays;
+    const startDateStr = (document.getElementById('coach-start-date') || {}).value || '';
+    const endDateStr   = (document.getElementById('coach-end-date')   || {}).value || '';
+    const day1Start    = this._getTimeValue('coachDay1Start');
+    const day1End      = this._getTimeValue('coachDay1End');
+    const day2Start    = this._getTimeValue('coachDay2Start');
+    const day2End      = this._getTimeValue('coachDay2End');
+
+    if (!startDateStr || !endDateStr) { this._showErr('Please select a first and last practice date.'); return; }
+    if (startDateStr >= endDateStr)   { this._showErr('Last practice must be after first practice.'); return; }
+    if (!day1Start || !day1End || day1Start >= day1End) {
+      this._showErr(`Please set valid times for ${DAY_NAMES[d1]}.`); return;
+    }
+    if (!day2Start || !day2End || day2Start >= day2End) {
+      this._showErr(`Please set valid times for ${DAY_NAMES[d2]}.`); return;
+    }
+
+    const btn = document.querySelector('#date-coach-practice .nav-btn.primary');
+    if (btn) { btn.disabled = true; btn.textContent = 'Generating…'; }
+
+    // Fetch school holidays to skip
+    let holidays = {};
+    try {
+      const url = CONFIG.SCRIPT_URL + '?action=getHolidays&token=' + encodeURIComponent(Auth.getToken());
+      const res  = await fetch(url);
+      const json = await res.json();
+      (json.holidays || []).forEach(d => { holidays[d] = true; });
+    } catch (_) { /* proceed without holiday list */ }
+
+    if (btn) { btn.disabled = false; btn.textContent = 'Generate Schedule →'; }
+
+    // Generate all matching dates
+    const entries = [];
+    const cur = new Date(startDateStr + 'T00:00:00');
+    const end = new Date(endDateStr   + 'T00:00:00');
+
+    while (cur <= end) {
+      const jsDay  = cur.getDay(); // 0=Sun,1=Mon…5=Fri,6=Sat
+      const dateStr = cur.toISOString().split('T')[0];
+
+      if (!holidays[dateStr]) {
+        if (jsDay === d1) entries.push({ date: dateStr, startTime: day1Start, endTime: day1End });
+        else if (jsDay === d2) entries.push({ date: dateStr, startTime: day2Start, endTime: day2End });
+      }
+
+      cur.setDate(cur.getDate() + 1);
+    }
+
+    if (entries.length === 0) {
+      this._showErr('No practice dates found in that range. Check your day selections and dates.');
+      return;
+    }
+
+    this.data.entries = entries;
+    this.data.groupId = this._generateId();
+    this._renderCoachEntriesList();
+    this._updatePreview();
+  },
+
+  _renderCoachEntriesList() {
+    const listEl  = document.getElementById('coach-entries-list');
+    const emptyEl = document.getElementById('coach-entries-empty');
+    if (!listEl || !emptyEl) return;
+
+    if (this.data.entries.length === 0) {
+      listEl.innerHTML   = '';
+      emptyEl.style.display = 'block';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+
+    let html = `<div class="entries-header">${this.data.entries.length} practice dates generated</div>`;
+    html += this.data.entries.map((entry, i) => `
+      <div class="entry-chip">
+        <div class="entry-chip-info">
+          <div class="entry-chip-date">${this._formatDateShort(entry.date)}</div>
+          <div class="entry-chip-time">${this._formatTimeStr(entry.startTime)} – ${this._formatTimeStr(entry.endTime)}</div>
+        </div>
+        <button type="button" class="entry-chip-remove"
+          onclick="ReservationForm._removeCoachEntry(${i})" title="Remove">✕</button>
+      </div>
+    `).join('');
+
+    listEl.innerHTML = html;
+  },
+
+  _removeCoachEntry(index) {
+    this.data.entries.splice(index, 1);
+    this._renderCoachEntriesList();
+    this._updatePreview();
+  },
+
+  // ----------------------------------------------------------
+  // Normal multi-entry management
+  // ----------------------------------------------------------
   _addEntry() {
     const dateEl = document.getElementById('resDate');
     const date = dateEl ? dateEl.value : '';
     const startTime = this._getTimeValue('startTime');
-    const endTime = this._getTimeValue('endTime');
+    const endTime   = this._getTimeValue('endTime');
 
-    // Validate before adding
-    if (!date) {
-      this._showErr('Please select a date.');
-      return;
-    }
-    if (!startTime || !endTime) {
-      this._showErr('Please select start and end time.');
-      return;
-    }
-    if (startTime >= endTime) {
-      this._showErr('End time must be after start time.');
-      return;
-    }
-    if (new Date(date) < new Date(this._todayStr())) {
-      this._showErr('Please select a future date.');
-      return;
-    }
+    if (!date) { this._showErr('Please select a date.'); return; }
+    if (!startTime || !endTime) { this._showErr('Please select start and end time.'); return; }
+    if (startTime >= endTime) { this._showErr('End time must be after start time.'); return; }
+    if (new Date(date) < new Date(this._todayStr())) { this._showErr('Please select a future date.'); return; }
 
-    // Check for duplicate dates
     const duplicate = this.data.entries.some(e => e.date === date && e.startTime === startTime && e.endTime === endTime);
-    if (duplicate) {
-      this._showErr('This exact date and time combination has already been added.');
-      return;
-    }
+    if (duplicate) { this._showErr('This exact date and time combination has already been added.'); return; }
 
     this.data.entries.push({ date, startTime, endTime });
     this._renderEntriesList();
     this._updatePreview();
 
-    // Clear the input form for next entry
     if (dateEl) dateEl.value = '';
-    // Reset times to default
     this._resetTimePicker('startTime', '08:00');
     this._resetTimePicker('endTime', '09:00');
-
     this._clearMessages();
   },
 
@@ -205,29 +458,22 @@ const ReservationForm = {
 
   _resetTimePicker(fieldId, initialValue) {
     let h24 = 8, min = 0;
-    if (initialValue) {
-      const parts = initialValue.split(':');
-      h24 = parseInt(parts[0]) || 8;
-      min = parseInt(parts[1]) || 0;
-    }
+    if (initialValue) { const p = initialValue.split(':'); h24 = parseInt(p[0]) || 8; min = parseInt(p[1]) || 0; }
     const isPM = h24 >= 12;
-    const h12 = h24 % 12 || 12;
+    const h12  = h24 % 12 || 12;
     const minR = Math.round(min / 5) * 5 % 60;
-
-    const hEl = document.getElementById(`tp-h-${fieldId}`);
-    const mEl = document.getElementById(`tp-m-${fieldId}`);
+    const hEl  = document.getElementById(`tp-h-${fieldId}`);
+    const mEl  = document.getElementById(`tp-m-${fieldId}`);
     if (hEl) hEl.value = String(h12);
     if (mEl) mEl.value = String(minR);
-
     document.querySelectorAll(`#tp-${fieldId} .tp-ampm-btn`).forEach(btn => {
       btn.classList.toggle('active', btn.textContent === (isPM ? 'PM' : 'AM'));
     });
   },
 
   _renderEntriesList() {
-    const listEl = document.getElementById('entries-list');
+    const listEl  = document.getElementById('entries-list');
     const emptyEl = document.getElementById('entries-empty');
-
     if (!listEl || !emptyEl) return;
 
     if (this.data.entries.length === 0) {
@@ -235,56 +481,43 @@ const ReservationForm = {
       emptyEl.style.display = 'block';
       return;
     }
-
     emptyEl.style.display = 'none';
 
-    // Sort entries by date
     const sorted = [...this.data.entries].map((e, i) => ({ ...e, origIndex: i }))
       .sort((a, b) => new Date(a.date) - new Date(b.date));
 
     let html = `<div class="entries-header">Dates Added</div>`;
-    html += sorted.map((entry) => {
-      const dateFormatted = this._formatDateShort(entry.date);
-      const startTimeFormatted = this._formatTimeStr(entry.startTime);
-      const endTimeFormatted = this._formatTimeStr(entry.endTime);
-      return `
-        <div class="entry-chip">
-          <div class="entry-chip-info">
-            <div class="entry-chip-date">${dateFormatted}</div>
-            <div class="entry-chip-time">${startTimeFormatted} – ${endTimeFormatted}</div>
-          </div>
-          <button type="button" class="entry-chip-remove" onclick="ReservationForm._removeEntry(${entry.origIndex})" title="Remove">✕</button>
+    html += sorted.map(entry => `
+      <div class="entry-chip">
+        <div class="entry-chip-info">
+          <div class="entry-chip-date">${this._formatDateShort(entry.date)}</div>
+          <div class="entry-chip-time">${this._formatTimeStr(entry.startTime)} – ${this._formatTimeStr(entry.endTime)}</div>
         </div>
-      `;
-    }).join('');
+        <button type="button" class="entry-chip-remove"
+          onclick="ReservationForm._removeEntry(${entry.origIndex})" title="Remove">✕</button>
+      </div>
+    `).join('');
 
     listEl.innerHTML = html;
   },
 
   // ----------------------------------------------------------
-  // Custom Time Picker
+  // Custom time picker
   // ----------------------------------------------------------
   _buildTimePicker(fieldId, initialValue) {
     let h24 = 8, min = 0;
-    if (initialValue) {
-      const parts = initialValue.split(':');
-      h24 = parseInt(parts[0]) || 8;
-      min = parseInt(parts[1]) || 0;
-    }
-    const isPM   = h24 >= 12;
-    const h12    = h24 % 12 || 12;
-    // Round minute down to nearest 5
-    const minR   = Math.round(min / 5) * 5 % 60;
+    if (initialValue) { const p = initialValue.split(':'); h24 = parseInt(p[0]) || 8; min = parseInt(p[1]) || 0; }
+    const isPM = h24 >= 12;
+    const h12  = h24 % 12 || 12;
+    const minR = Math.round(min / 5) * 5 % 60;
 
     const hours   = [1,2,3,4,5,6,7,8,9,10,11,12];
     const minutes = [0,5,10,15,20,25,30,35,40,45,50,55];
 
     const hOpts = hours.map(h =>
-      `<option value="${h}" ${h === h12 ? 'selected' : ''}>${String(h).padStart(2,'0')}</option>`
-    ).join('');
+      `<option value="${h}" ${h === h12 ? 'selected' : ''}>${String(h).padStart(2,'0')}</option>`).join('');
     const mOpts = minutes.map(m =>
-      `<option value="${m}" ${m === minR ? 'selected' : ''}>${String(m).padStart(2,'0')}</option>`
-    ).join('');
+      `<option value="${m}" ${m === minR ? 'selected' : ''}>${String(m).padStart(2,'0')}</option>`).join('');
 
     return `
       <div class="tp" id="tp-${fieldId}">
@@ -317,10 +550,7 @@ const ReservationForm = {
     return `${String(h).padStart(2,'0')}:${String(parseInt(mEl.value)).padStart(2,'0')}`;
   },
 
-  _onTimeChange(fieldId) {
-    // No longer saving single entry to data on time change — entries managed via _addEntry
-    this._updatePreview();
-  },
+  _onTimeChange() { this._updatePreview(); },
 
   // ----------------------------------------------------------
   // Navigation
@@ -337,18 +567,28 @@ const ReservationForm = {
     this._clearMessages();
     this.currentStep = n;
 
-    // Step 4: render entries list when returning to it, prefill date from URL
+    if (n === 2) this._updateStep2Mode();
     if (n === 4) {
+      this._updateStep4Mode();
       this._renderEntriesList();
+      if (this.data.isCoach && this.data.purpose === 'Practice') {
+        this._renderCoachEntriesList();
+      }
       if (this._urlDate) {
         const dateInput = document.getElementById('resDate');
         if (dateInput && !dateInput.value) dateInput.value = this._urlDate;
       }
     }
 
-    // Step 5 — narrow centered layout, hide preview card
+    // Step 5: narrow layout + update submit note for coaches
     const layout = document.getElementById('reserve-layout');
     if (layout) layout.classList.toggle('step-review', n === this.totalSteps);
+    if (n === this.totalSteps) {
+      const note = document.getElementById('submit-note');
+      if (note && this.data.isCoach && this.data.purpose === 'Practice') {
+        note.textContent = `You'll receive a confirmation email with your full practice schedule. Each date is reviewed individually.`;
+      }
+    }
   },
 
   _updateProgress(n) {
@@ -356,7 +596,7 @@ const ReservationForm = {
       const dot = document.getElementById(`progress-${i}`);
       if (!dot) continue;
       dot.classList.toggle('completed', i < n);
-      dot.classList.toggle('active', i === n);
+      dot.classList.toggle('active',    i === n);
     }
     const fill = document.getElementById('progress-fill');
     if (fill) fill.style.width = `${((n - 1) / (this.totalSteps - 1)) * 100}%`;
@@ -391,18 +631,34 @@ const ReservationForm = {
   _validateStep(n) {
     this._clearMessages();
     if (n === 1) {
-      if (!document.getElementById('teacherName').value.trim()) { this._showErr('Please enter your name.'); return false; }
-      if (!this.data.gradeLevel) { this._showErr('Please select a grade level.'); return false; }
+      if (!document.getElementById('teacherName').value.trim()) {
+        this._showErr('Please enter your name.'); return false;
+      }
+      if (!this.data.gradeLevel) {
+        this._showErr('Please select a grade level or role.'); return false;
+      }
     }
     if (n === 2) {
-      if (!document.getElementById('purpose').value.trim()) { this._showErr('Please describe the purpose.'); return false; }
+      if (this.data.isCoach) {
+        if (!this.data.purpose) {
+          this._showErr('Please select Practice or Banquet.'); return false;
+        }
+      } else {
+        if (!document.getElementById('purpose').value.trim()) {
+          this._showErr('Please describe the purpose.'); return false;
+        }
+      }
     }
     if (n === 3) {
       if (!this.data.space) { this._showErr('Please select a space.'); return false; }
     }
     if (n === 4) {
       if (this.data.entries.length === 0) {
-        this._showErr('Please add at least one date and time.');
+        if (this.data.isCoach && this.data.purpose === 'Practice') {
+          this._showErr('Please generate your practice schedule first.');
+        } else {
+          this._showErr('Please add at least one date and time.');
+        }
         return false;
       }
     }
@@ -411,31 +667,48 @@ const ReservationForm = {
 
   _saveStep(n) {
     if (n === 1) this.data.teacherName = document.getElementById('teacherName').value.trim();
-    if (n === 2) this.data.purpose     = document.getElementById('purpose').value.trim();
-    // Step 4 entries are managed in real-time via _addEntry/_removeEntry
+    if (n === 2 && !this.data.isCoach) {
+      this.data.purpose = document.getElementById('purpose').value.trim();
+    }
   },
 
   _restoreSelections(n) {
     if (n === 1 && this.data.gradeLevel) {
-      document.querySelectorAll('[data-field="gradeLevel"]').forEach((b) =>
+      document.querySelectorAll('[data-field="gradeLevel"]').forEach(b =>
         b.classList.toggle('selected', b.dataset.value === this.data.gradeLevel));
     }
+    if (n === 2 && this.data.isCoach && this.data.purpose) {
+      document.querySelectorAll('#purpose-coach .bubble-btn').forEach(btn =>
+        btn.classList.toggle('selected', btn.dataset.purpose === this.data.purpose));
+    }
     if (n === 3 && this.data.space) {
-      document.querySelectorAll('[data-field="space"]').forEach((b) =>
+      document.querySelectorAll('[data-field="space"]').forEach(b =>
         b.classList.toggle('selected', b.dataset.value === this.data.space));
     }
-    if (n === 4) {
-      this._renderEntriesList();
+    if (n === 4 && this.data.isCoach && this.data.coachDays.length === 2) {
+      document.querySelectorAll('.day-bubble').forEach(btn => {
+        btn.classList.toggle('selected', this.data.coachDays.includes(parseInt(btn.dataset.day)));
+      });
+      const timesEl = document.getElementById('coach-day-times');
+      if (timesEl) timesEl.style.display = 'block';
+      const lbl1 = document.getElementById('coach-day1-label');
+      const lbl2 = document.getElementById('coach-day2-label');
+      if (lbl1) lbl1.textContent = DAY_NAMES[this.data.coachDays[0]] + ' Times';
+      if (lbl2) lbl2.textContent = DAY_NAMES[this.data.coachDays[1]] + ' Times';
     }
   },
 
+  // ----------------------------------------------------------
+  // Review card
+  // ----------------------------------------------------------
   _buildReviewCard() {
-    const space = CONFIG.SPACES.find((s) => s.id === this.data.space);
+    const space = CONFIG.SPACES.find(s => s.id === this.data.space);
     const card  = document.getElementById('review-card');
     if (!card) return;
 
-    let entriesHtml = '';
     const sorted = [...this.data.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    let entriesHtml = '';
     sorted.forEach(entry => {
       entriesHtml += `
         <div class="review-entry-item">
@@ -444,19 +717,27 @@ const ReservationForm = {
             <div class="review-entry-date">${this._formatDateStr(entry.date)}</div>
             <div class="review-entry-time">${this._formatTimeStr(entry.startTime)} – ${this._formatTimeStr(entry.endTime)}</div>
           </div>
-        </div>
-      `;
+        </div>`;
     });
 
+    const roleLabel  = this.data.isCoach ? 'Role' : 'Grade Level';
+    const roleValue  = this.data.gradeLevel;
+    const countLabel = (this.data.isCoach && this.data.purpose === 'Practice')
+      ? `Practice Dates (${this.data.entries.length})`
+      : `Dates & Times (${this.data.entries.length})`;
+
     card.innerHTML = `
-      <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
-      <div class="review-row"><span class="review-label">Grade Level</span><span class="review-value">${this._escape(this.data.gradeLevel)}</span></div>
+      <div class="review-row"><span class="review-label">Name</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
+      <div class="review-row"><span class="review-label">${roleLabel}</span><span class="review-value">${this._escape(roleValue)}</span></div>
       <div class="review-row"><span class="review-label">Purpose</span><span class="review-value">${this._escape(this.data.purpose)}</span></div>
       <div class="review-row"><span class="review-label">Space</span>
-        <span class="review-value"><span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>${space ? space.label : this.data.space}</span>
+        <span class="review-value">
+          <span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>
+          ${space ? space.label : this.data.space}
+        </span>
       </div>
       <div class="review-entries-section">
-        <div class="review-entries-label">Dates & Times (${this.data.entries.length})</div>
+        <div class="review-entries-label">${countLabel}</div>
         ${entriesHtml}
       </div>
     `;
@@ -478,27 +759,33 @@ const ReservationForm = {
     btn.disabled = true;
     btn.textContent = 'Submitting…';
 
+    const groupId = (this.data.isCoach && this.data.purpose === 'Practice')
+      ? (this.data.groupId || this._generateId())
+      : null;
+    this.data.groupId = groupId;
+
     const payload = {
-      action: 'submit',
-      token: Auth.getToken(),
+      action:      'submit',
+      token:       Auth.getToken(),
       teacherName: this.data.teacherName,
       gradeLevel:  this.data.gradeLevel,
       purpose:     this.data.purpose,
       space:       this.data.space,
       entries:     this.data.entries,
+      isCoach:     this.data.isCoach,
+      groupId:     groupId,
       date:        this.data.entries.length > 0 ? this.data.entries[0].date : '',
       startTime:   this.data.entries.length > 0 ? this.data.entries[0].startTime : '',
       endTime:     this.data.entries.length > 0 ? this.data.entries[0].endTime : '',
     };
-    window._lastSubmitPayload = JSON.stringify(payload);
 
     fetch(CONFIG.SCRIPT_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify(payload),
     })
-      .then((res) => res.json())
-      .then((data) => {
+      .then(res => res.json())
+      .then(data => {
         btn.disabled = false;
         btn.textContent = 'Submit Request';
 
@@ -514,7 +801,7 @@ const ReservationForm = {
         }
         this._showConfirmation(data);
       })
-      .catch((err) => {
+      .catch(err => {
         console.error('Submit error:', err);
         btn.disabled = false;
         btn.textContent = 'Submit Request';
@@ -528,35 +815,41 @@ const ReservationForm = {
   _showConfirmation(data) {
     const formCard = document.querySelector('.form-card');
     if (!formCard) return;
-    const space = CONFIG.SPACES.find((s) => s.id === this.data.space);
-    const count = this.data.entries.length;
+    const space = CONFIG.SPACES.find(s => s.id === this.data.space);
+    const count = data.saved || this.data.entries.length;
 
-    let entriesSummaryHtml = '';
     const sorted = [...this.data.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
-    sorted.forEach(entry => {
-      entriesSummaryHtml += `
-        <div class="review-entry-item">
-          <span class="review-entry-dot" style="background:${space ? space.color : '#6B7280'}"></span>
-          <div class="review-entry-info">
-            <div class="review-entry-date">${this._formatDateStr(entry.date)}</div>
-            <div class="review-entry-time">${this._formatTimeStr(entry.startTime)} – ${this._formatTimeStr(entry.endTime)}</div>
-          </div>
+    let entriesSummaryHtml = sorted.map(entry => `
+      <div class="review-entry-item">
+        <span class="review-entry-dot" style="background:${space ? space.color : '#6B7280'}"></span>
+        <div class="review-entry-info">
+          <div class="review-entry-date">${this._formatDateStr(entry.date)}</div>
+          <div class="review-entry-time">${this._formatTimeStr(entry.startTime)} – ${this._formatTimeStr(entry.endTime)}</div>
         </div>
-      `;
-    });
+      </div>`).join('');
+
+    const skipped = data.skippedHolidays || 0;
+    const holidayNote = skipped > 0
+      ? `<p style="font-size:13px;color:var(--muted);margin-top:6px">${skipped} date${skipped > 1 ? 's' : ''} skipped (school holiday).</p>`
+      : '';
 
     formCard.innerHTML = `
       <div class="confirmation-screen">
         <div class="confirm-icon">✓</div>
         <h2 class="confirm-title">Request Submitted!</h2>
         <p class="confirm-msg">
-          Your reservation request for <strong>${count} date${count > 1 ? 's' : ''}</strong> is <strong>pending approval</strong>.
-          A confirmation email has been sent to you — you'll get another once each date is approved.
+          Your reservation request for <strong>${count} date${count !== 1 ? 's' : ''}</strong>
+          is <strong>pending approval</strong>.
+          A confirmation email has been sent to you.
         </p>
+        ${holidayNote}
         <div class="confirm-summary review-card">
-          <div class="review-row"><span class="review-label">Teacher</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
+          <div class="review-row"><span class="review-label">Name</span><span class="review-value">${this._escape(this.data.teacherName)}</span></div>
           <div class="review-row"><span class="review-label">Space</span>
-            <span class="review-value"><span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>${space ? space.label : this.data.space}</span>
+            <span class="review-value">
+              <span class="review-space-dot" style="background:${space ? space.color : '#6B7280'}"></span>
+              ${space ? space.label : this.data.space}
+            </span>
           </div>
           <div class="review-entries-section">
             <div class="review-entries-label">Dates & Times (${count})</div>
@@ -575,7 +868,7 @@ const ReservationForm = {
   // Reset
   // ----------------------------------------------------------
   reset() {
-    this.data = { teacherName: '', gradeLevel: '', purpose: '', space: '', entries: [] };
+    this.data = { teacherName: '', gradeLevel: '', isCoach: false, purpose: '', space: '', entries: [], coachDays: [], groupId: null };
     this.currentStep = 1;
     const formCard = document.querySelector('.form-card');
     if (formCard) formCard.innerHTML = '<div id="form-container"></div>';
@@ -587,21 +880,27 @@ const ReservationForm = {
   // Bubble & input listeners
   // ----------------------------------------------------------
   _attachBubbleListeners() {
-    document.querySelectorAll('.bubble-btn, .space-bubble-btn').forEach((btn) => {
+    document.querySelectorAll('.bubble-btn, .space-bubble-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const field = btn.dataset.field;
         const value = btn.dataset.value;
-        this.data[field] = value;
-        document.querySelectorAll(`[data-field="${field}"]`).forEach((b) => b.classList.remove('selected'));
+        if (!field) return; // coach purpose / day bubbles have their own onclick
+        if (field === 'gradeLevel') {
+          this._onGradeSelect(value);
+        } else {
+          this.data[field] = value;
+        }
+        document.querySelectorAll(`[data-field="${field}"]`).forEach(b => b.classList.remove('selected'));
         btn.classList.add('selected');
         this._updatePreview();
       });
     });
+
     const nameEl = document.getElementById('teacherName');
     if (nameEl) nameEl.addEventListener('input', () => { this.data.teacherName = nameEl.value.trim(); this._updatePreview(); });
+
     const purposeEl = document.getElementById('purpose');
     if (purposeEl) purposeEl.addEventListener('input', () => { this.data.purpose = purposeEl.value.trim(); this._updatePreview(); });
-    // No date listener — date input is only used for adding entries
   },
 
   _fillPurpose(text) {
@@ -612,7 +911,7 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
-  // Live Preview
+  // Live preview
   // ----------------------------------------------------------
   _updatePreview() {
     const set = (id, val) => {
@@ -623,7 +922,6 @@ const ReservationForm = {
     };
 
     const d = this.data;
-
     const titleEl = document.getElementById('preview-title');
     if (titleEl) {
       titleEl.textContent = d.purpose || 'Your Reservation';
@@ -633,7 +931,6 @@ const ReservationForm = {
     set('preview-teacher', d.teacherName || (document.getElementById('teacherName') || {}).value);
     set('preview-grade',   d.gradeLevel);
 
-    // Show date count or first date
     if (d.entries.length > 0) {
       const sorted = [...d.entries].sort((a, b) => new Date(a.date) - new Date(b.date));
       if (d.entries.length === 1) {
@@ -669,14 +966,20 @@ const ReservationForm = {
   // ----------------------------------------------------------
   // Helpers
   // ----------------------------------------------------------
-  _stepLabel(n) { return ['Info','Purpose','Space','Date & Time','Review'][n - 1]; },
+  _generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 6);
+  },
+  _stepLabel(n)  { return ['Info','Purpose','Space','Schedule','Review'][n - 1]; },
   _clearMessages() {
-    ['form-error','form-conflict'].forEach((id) => {
+    ['form-error','form-conflict'].forEach(id => {
       const el = document.getElementById(id);
       if (el) { el.style.display = 'none'; el.innerHTML = ''; }
     });
   },
-  _showErr(msg) { const el = document.getElementById('form-error'); if (el) { el.textContent = msg; el.style.display = 'block'; } },
+  _showErr(msg) {
+    const el = document.getElementById('form-error');
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+  },
   _todayStr() { return new Date().toISOString().split('T')[0]; },
   _formatDateStr(str) {
     if (!str) return '';

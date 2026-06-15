@@ -40,7 +40,8 @@ const COL = {
   APPROVE:         11,
   CONFLICT_NOTES:  12,
   NOTIFY_CONFLICT: 13,
-  ROW_ID:          14
+  ROW_ID:          14,
+  GROUP_ID:        15
 };
 
 // ============================================================
@@ -84,6 +85,7 @@ function doGet(e) {
     if (action === 'approveRow')        return approveRowApi(e.parameter);
     if (action === 'denyRow')           return denyRowApi(e.parameter);
     if (action === 'sendConflictEmail') return sendConflictEmailApi(e.parameter);
+    if (action === 'getHolidays')       return getHolidaysApi(e);
     return jsonResp({ error: 'Invalid action' });
   } catch (err) {
     return jsonResp({ error: err && err.message ? err.message : String(err) });
@@ -134,19 +136,28 @@ function handleFormSubmission(data) {
     sheet.appendRow([
       'Timestamp', 'Submitted By', 'Teacher Name', 'Grade Level', 'Purpose',
       'Space', 'Date', 'Start Time', 'End Time', 'Status',
-      'Approve', 'Conflict Notes', 'Send Conflict Email', 'Row ID'
+      'Approve', 'Conflict Notes', 'Send Conflict Email', 'Row ID', 'Group ID'
     ]);
-    sheet.getRange(1, 1, 1, 14).setFontWeight('bold').setBackground('#0B0B0B').setFontColor('#FFFFFF');
+    sheet.getRange(1, 1, 1, 15).setFontWeight('bold').setBackground('#0B0B0B').setFontColor('#FFFFFF');
     sheet.setFrozenRows(1);
   }
 
-  var savedCount    = 0;
-  var conflictCount = 0;
-  var savedRowIds   = [];
+  var groupId         = data.groupId   || '';
+  var isCoach         = data.isCoach   || false;
+  var savedCount      = 0;
+  var conflictCount   = 0;
+  var skippedHolidays = 0;
+  var savedRowIds     = [];
+
+  // Holiday dates to skip (only fetched for coach practice submissions)
+  var holidaySet = (isCoach && groupId) ? getHolidayDates() : {};
 
   for (var i = 0; i < entries.length; i++) {
     var entry = entries[i];
     if (!entry.date || !entry.startTime || !entry.endTime) continue;
+
+    // Skip school holidays for coach practice schedules
+    if (holidaySet[entry.date]) { skippedHolidays++; continue; }
 
     var conflict = checkConflict(data.space, entry.date, entry.startTime, entry.endTime);
     var rowId    = generateRowId();
@@ -159,7 +170,8 @@ function handleFormSubmission(data) {
       false,
       conflict || '',
       conflict ? false : '',
-      rowId
+      rowId,
+      groupId
     ]);
 
     sheet.getRange(newRow, COL.APPROVE).insertCheckboxes();
@@ -179,11 +191,17 @@ function handleFormSubmission(data) {
 
   var spaceName        = SPACE_LABELS[data.space] || data.space;
   var entriesFormatted = '';
-  for (var j = 0; j < entries.length; j++) {
-    var ent = entries[j];
-    entriesFormatted += 'Date:     ' + formatDateLong(ent.date) + '\n';
-    entriesFormatted += 'Time:     ' + formatTime12(ent.startTime) + ' – ' + formatTime12(ent.endTime) + '\n';
-    if (j < entries.length - 1) entriesFormatted += '\n';
+  for (var j = 0; j < savedRowIds.length; j++) {
+    var saved = savedRowIds[j];
+    var matchEntry = null;
+    for (var k = 0; k < entries.length; k++) {
+      if (entries[k].date === saved.date) { matchEntry = entries[k]; break; }
+    }
+    if (!matchEntry) continue;
+    entriesFormatted += 'Date:     ' + formatDateLong(saved.date) + '\n';
+    entriesFormatted += 'Time:     ' + formatTime12(matchEntry.startTime) + ' – ' + formatTime12(matchEntry.endTime) + '\n';
+    if (saved.conflict) entriesFormatted += '          ⚠️ CONFLICT\n';
+    if (j < savedRowIds.length - 1) entriesFormatted += '\n';
   }
 
   // ── Email teacher ─────────────────────────────────────────
@@ -234,25 +252,31 @@ function handleFormSubmission(data) {
     }
   }
 
-  // ── Email admin — one click-to-review link per row ────────
+  // ── Email admin ───────────────────────────────────────────
   var adminSubject;
-  if (conflictCount > 0) {
+  if (isCoach && groupId) {
+    adminSubject = (conflictCount > 0 ? '⚠️ ' : '🏃 ') +
+      'Coach Practice Schedule — ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
+  } else if (conflictCount > 0) {
     adminSubject = '⚠️ CONFLICT — New Reservation — ' + data.teacherName + ' | ' + spaceName;
   } else if (savedCount === 1) {
-    adminSubject = '🔔 New Reservation — ' + data.teacherName + ' | ' + spaceName + ' | ' + formatDateLong(entries[0].date);
+    adminSubject = '🔔 New Reservation — ' + data.teacherName + ' | ' + spaceName + ' | ' + formatDateLong(savedRowIds[0].date);
   } else {
     adminSubject = '🔔 New Reservation — ' + data.teacherName + ' | ' + spaceName + ' | ' + savedCount + ' dates';
   }
 
   var adminBody =
-    'A new space reservation request has been submitted.\n\n' +
-    'Teacher:  ' + data.teacherName + '\n' +
-    'Grade:    ' + data.gradeLevel  + '\n' +
-    'Purpose:  ' + data.purpose     + '\n' +
-    'Space:    ' + spaceName        + '\n' +
-    (savedCount > 1 ? '\nDATES (' + savedCount + ')\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '\n') +
+    (isCoach && groupId
+      ? 'A coach has submitted a full practice schedule.\n\n'
+      : 'A new space reservation request has been submitted.\n\n') +
+    'Coach/Teacher: ' + data.teacherName + '\n' +
+    'Grade/Role:    ' + data.gradeLevel  + '\n' +
+    'Purpose:       ' + data.purpose     + '\n' +
+    'Space:         ' + spaceName        + '\n' +
+    (skippedHolidays > 0 ? '\n📅 ' + skippedHolidays + ' date(s) skipped (school holiday).\n' : '') +
+    '\nSCHEDULE (' + savedCount + ' dates)\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
     entriesFormatted +
-    (savedCount > 1 ? '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' : '') +
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n' +
     (conflictCount > 0
       ? '\n⚠️ ' + conflictCount + ' date(s) have CONFLICTS with existing calendar events.\n'
       : '') +
@@ -273,7 +297,7 @@ function handleFormSubmission(data) {
   ]);
   MailApp.sendEmail({ to: ADMIN_EMAIL, subject: adminSubject, body: adminEmail.body, htmlBody: adminEmail.htmlBody });
 
-  return jsonResp({ success: true, saved: savedCount, conflicts: conflictCount });
+  return jsonResp({ success: true, saved: savedCount, conflicts: conflictCount, skippedHolidays: skippedHolidays });
 }
 
 // ============================================================
@@ -383,6 +407,7 @@ function getPendingRows(e) {
       endTime:       normalizeTime(r[COL.END_TIME   - 1]),
       status:        String(r[COL.STATUS - 1] || ''),
       conflictNotes: String(r[COL.CONFLICT_NOTES - 1] || ''),
+      groupId:       String(r[COL.GROUP_ID - 1] || ''),
       timestamp:     r[COL.TIMESTAMP - 1] ? new Date(r[COL.TIMESTAMP - 1]).toISOString() : ''
     });
   }
@@ -614,6 +639,29 @@ function buildEmail(plainBody, links) {
   };
 }
 
+// Returns { 'YYYY-MM-DD': true } for every date in the Holidays sheet.
+function getHolidayDates() {
+  var result = {};
+  try {
+    var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Holidays');
+    if (!sheet) return result;
+    var values = sheet.getDataRange().getValues();
+    for (var i = 0; i < values.length; i++) {
+      var ds = normalizeDate(values[i][0]);
+      if (ds) result[ds] = true;
+    }
+  } catch(e) {}
+  return result;
+}
+
+// API endpoint: returns holiday date strings for the form to filter client-side.
+function getHolidaysApi(e) {
+  var token = (e && e.parameter && e.parameter.token) ? String(e.parameter.token) : '';
+  if (!verifyToken(token).valid) return jsonResp({ error: 'Unauthorized' });
+  var holidays = Object.keys(getHolidayDates());
+  return jsonResp({ holidays: holidays });
+}
+
 function getSheet() {
   return SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_NAME);
 }
@@ -636,7 +684,8 @@ function findRowById(sheet, rowId) {
         startTime:     normalizeTime(r[COL.START_TIME - 1]),
         endTime:       normalizeTime(r[COL.END_TIME   - 1]),
         status:        r[COL.STATUS          - 1],
-        conflictNotes: r[COL.CONFLICT_NOTES  - 1] || ''
+        conflictNotes: r[COL.CONFLICT_NOTES  - 1] || '',
+        groupId:       String(r[COL.GROUP_ID - 1] || '')
       };
     }
   }
