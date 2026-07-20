@@ -457,11 +457,17 @@ function approveRowApi(data) {
   try {
     var cal = CalendarApp.getCalendarById(CALENDAR_IDS[row.spaceId]);
     if (cal) {
-      cal.createEvent(
+      var evt = cal.createEvent(
         row.spaceName + ' — ' + row.teacherName + ' (' + row.gradeLevel + ')',
         startDt, endDt,
         { description: 'Purpose: ' + row.purpose + '\nRequested by: ' + row.teacherEmail }
       );
+      evt.addGuest(row.teacherEmail);
+      if (row.spaceId === 'cafegym') {
+        evt.addGuest('victoria.hernandez@slamnv.org');
+        evt.addGuest('cynthia.garcia@slamnv.org');
+        evt.addGuest('kenny.hin@slamnv.org');
+      }
     }
   } catch (err) {
     calNote = 'Calendar event could not be created automatically: ' + err.message;
@@ -820,11 +826,17 @@ function handleApproval(sheet, row) {
   try {
     var cal = CalendarApp.getCalendarById(CALENDAR_IDS[spaceId]);
     if (cal) {
-      cal.createEvent(
+      var evt = cal.createEvent(
         spaceName + ' — ' + teacherName + ' (' + gradeLevel + ')',
         parseDateTime(dateStr, startTimeStr), parseDateTime(dateStr, endTimeStr),
         { description: 'Purpose: ' + purpose + '\nRequested by: ' + teacherEmail }
       );
+      evt.addGuest(teacherEmail);
+      if (spaceId === 'cafegym') {
+        evt.addGuest('victoria.hernandez@slamnv.org');
+        evt.addGuest('cynthia.garcia@slamnv.org');
+        evt.addGuest('kenny.hin@slamnv.org');
+      }
     }
   } catch (err) { calNote = err.message; }
 

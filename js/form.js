@@ -15,7 +15,7 @@ const ReservationForm = {
     purpose: '',
     space: '',
     entries: [],
-    coachDays: [],   // [dayNum1, dayNum2], 1=Mon … 5=Fri
+    coachDays: [],   // selected weekday numbers 1=Mon…5=Fri, up to 5
     groupId: null,
   },
 
@@ -146,11 +146,11 @@ const ReservationForm = {
         <!-- Coach practice recurring builder -->
         <div id="date-coach-practice" style="display:none">
           <h2 class="step-title">Build your practice schedule</h2>
-          <p class="step-subtitle">Choose 2 days, set times for each, then pick your season dates.</p>
+          <p class="step-subtitle">Choose your practice days, set times for each, then pick your season dates.</p>
 
           <div class="field-group">
             <label class="field-label">Practice Days
-              <span style="font-weight:400;color:var(--muted);font-size:12px"> — select exactly 2</span>
+              <span style="font-weight:400;color:var(--muted);font-size:12px"> — select up to 5</span>
             </label>
             <div class="bubble-group">
               ${[1,2,3,4,5].map(d => `
@@ -161,32 +161,22 @@ const ReservationForm = {
           </div>
 
           <div id="coach-day-times" style="display:none;margin-top:4px">
-            <div class="field-group">
-              <label class="field-label" id="coach-day1-label">Day 1 Times</label>
-              <div class="time-row">
-                <div class="field-group" style="flex:1">
-                  <label class="field-label" style="font-size:11px;color:var(--muted)">Start</label>
-                  ${this._buildTimePicker('coachDay1Start', '15:30')}
-                </div>
-                <div class="field-group" style="flex:1">
-                  <label class="field-label" style="font-size:11px;color:var(--muted)">End</label>
-                  ${this._buildTimePicker('coachDay1End', '17:00')}
-                </div>
-              </div>
-            </div>
-            <div class="field-group">
-              <label class="field-label" id="coach-day2-label">Day 2 Times</label>
-              <div class="time-row">
-                <div class="field-group" style="flex:1">
-                  <label class="field-label" style="font-size:11px;color:var(--muted)">Start</label>
-                  ${this._buildTimePicker('coachDay2Start', '15:30')}
-                </div>
-                <div class="field-group" style="flex:1">
-                  <label class="field-label" style="font-size:11px;color:var(--muted)">End</label>
-                  ${this._buildTimePicker('coachDay2End', '17:00')}
+            ${[1,2,3,4,5].map(i => `
+            <div id="coach-day${i}-row" style="${i > 1 ? 'display:none' : ''}">
+              <div class="field-group">
+                <label class="field-label" id="coach-day${i}-label">Day ${i} Times</label>
+                <div class="time-row">
+                  <div class="field-group" style="flex:1">
+                    <label class="field-label" style="font-size:11px;color:var(--muted)">Start</label>
+                    ${this._buildTimePicker('coachDay' + i + 'Start', '15:30')}
+                  </div>
+                  <div class="field-group" style="flex:1">
+                    <label class="field-label" style="font-size:11px;color:var(--muted)">End</label>
+                    ${this._buildTimePicker('coachDay' + i + 'End', '17:00')}
+                  </div>
                 </div>
               </div>
-            </div>
+            </div>`).join('')}
             <div class="time-row">
               <div class="field-group" style="flex:1">
                 <label class="field-label">First Practice</label>
@@ -205,7 +195,7 @@ const ReservationForm = {
 
           <div id="coach-entries-list" style="margin-top:16px"></div>
           <div id="coach-entries-empty" style="text-align:center;padding:20px 16px;color:#AAAAAA;font-size:13px;margin-top:8px">
-            Select 2 days and click "Generate Schedule" to see your practice dates.
+            Select days and click "Generate Schedule" to see your practice dates.
           </div>
         </div>
       </div>
@@ -293,14 +283,14 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
-  // Coach: day bubble selection (exactly 2)
+  // Coach: day bubble selection (up to 5)
   // ----------------------------------------------------------
   _onDayBubbleClick(dayNum) {
     const idx = this.data.coachDays.indexOf(dayNum);
     if (idx >= 0) {
       this.data.coachDays.splice(idx, 1);
     } else {
-      if (this.data.coachDays.length >= 2) return;
+      if (this.data.coachDays.length >= 5) return;
       this.data.coachDays.push(dayNum);
       this.data.coachDays.sort((a, b) => a - b);
     }
@@ -309,19 +299,23 @@ const ReservationForm = {
       btn.classList.toggle('selected', this.data.coachDays.includes(parseInt(btn.dataset.day)));
     });
 
+    const n = this.data.coachDays.length;
     const timesEl = document.getElementById('coach-day-times');
-    if (timesEl) timesEl.style.display = this.data.coachDays.length === 2 ? 'block' : 'none';
+    if (timesEl) timesEl.style.display = n >= 1 ? 'block' : 'none';
 
-    if (this.data.coachDays.length === 2) {
-      const lbl1 = document.getElementById('coach-day1-label');
-      const lbl2 = document.getElementById('coach-day2-label');
-      if (lbl1) lbl1.textContent = DAY_NAMES[this.data.coachDays[0]] + ' Times';
-      if (lbl2) lbl2.textContent = DAY_NAMES[this.data.coachDays[1]] + ' Times';
-      // Reset entries when days change
-      this.data.entries = [];
-      this.data.groupId = null;
-      this._renderCoachEntriesList();
+    for (let i = 1; i <= 5; i++) {
+      const row = document.getElementById('coach-day' + i + '-row');
+      const lbl = document.getElementById('coach-day' + i + '-label');
+      if (row) row.style.display = n >= i ? 'block' : 'none';
+      if (lbl && this.data.coachDays[i - 1] !== undefined) {
+        lbl.textContent = DAY_NAMES[this.data.coachDays[i - 1]] + ' Times';
+      }
     }
+
+    // Reset entries whenever day selection changes
+    this.data.entries = [];
+    this.data.groupId = null;
+    this._renderCoachEntriesList();
   },
 
   // ----------------------------------------------------------
@@ -330,21 +324,23 @@ const ReservationForm = {
   async _generatePracticeSchedule() {
     this._clearMessages();
 
-    const [d1, d2] = this.data.coachDays;
+    const days = this.data.coachDays;
+    if (days.length === 0) { this._showErr('Please select at least one practice day.'); return; }
+
     const startDateStr = (document.getElementById('coach-start-date') || {}).value || '';
     const endDateStr   = (document.getElementById('coach-end-date')   || {}).value || '';
-    const day1Start    = this._getTimeValue('coachDay1Start');
-    const day1End      = this._getTimeValue('coachDay1End');
-    const day2Start    = this._getTimeValue('coachDay2Start');
-    const day2End      = this._getTimeValue('coachDay2End');
-
     if (!startDateStr || !endDateStr) { this._showErr('Please select a first and last practice date.'); return; }
     if (startDateStr >= endDateStr)   { this._showErr('Last practice must be after first practice.'); return; }
-    if (!day1Start || !day1End || day1Start >= day1End) {
-      this._showErr(`Please set valid times for ${DAY_NAMES[d1]}.`); return;
-    }
-    if (!day2Start || !day2End || day2Start >= day2End) {
-      this._showErr(`Please set valid times for ${DAY_NAMES[d2]}.`); return;
+
+    // Validate times for each selected day and build a lookup map
+    const dayTimes = {};
+    for (let i = 0; i < days.length; i++) {
+      const start = this._getTimeValue('coachDay' + (i + 1) + 'Start');
+      const end   = this._getTimeValue('coachDay' + (i + 1) + 'End');
+      if (!start || !end || start >= end) {
+        this._showErr(`Please set valid times for ${DAY_NAMES[days[i]]}.`); return;
+      }
+      dayTimes[days[i]] = { start, end };
     }
 
     const btn = document.querySelector('#date-coach-practice .nav-btn.primary');
@@ -370,9 +366,8 @@ const ReservationForm = {
       const jsDay  = cur.getDay(); // 0=Sun,1=Mon…5=Fri,6=Sat
       const dateStr = cur.toISOString().split('T')[0];
 
-      if (!holidays[dateStr]) {
-        if (jsDay === d1) entries.push({ date: dateStr, startTime: day1Start, endTime: day1End });
-        else if (jsDay === d2) entries.push({ date: dateStr, startTime: day2Start, endTime: day2End });
+      if (!holidays[dateStr] && dayTimes[jsDay]) {
+        entries.push({ date: dateStr, startTime: dayTimes[jsDay].start, endTime: dayTimes[jsDay].end });
       }
 
       cur.setDate(cur.getDate() + 1);
@@ -685,16 +680,21 @@ const ReservationForm = {
       document.querySelectorAll('[data-field="space"]').forEach(b =>
         b.classList.toggle('selected', b.dataset.value === this.data.space));
     }
-    if (n === 4 && this.data.isCoach && this.data.coachDays.length === 2) {
+    if (n === 4 && this.data.isCoach && this.data.coachDays.length >= 1) {
       document.querySelectorAll('.day-bubble').forEach(btn => {
         btn.classList.toggle('selected', this.data.coachDays.includes(parseInt(btn.dataset.day)));
       });
       const timesEl = document.getElementById('coach-day-times');
       if (timesEl) timesEl.style.display = 'block';
-      const lbl1 = document.getElementById('coach-day1-label');
-      const lbl2 = document.getElementById('coach-day2-label');
-      if (lbl1) lbl1.textContent = DAY_NAMES[this.data.coachDays[0]] + ' Times';
-      if (lbl2) lbl2.textContent = DAY_NAMES[this.data.coachDays[1]] + ' Times';
+      const nc = this.data.coachDays.length;
+      for (let i = 1; i <= 5; i++) {
+        const row = document.getElementById('coach-day' + i + '-row');
+        const lbl = document.getElementById('coach-day' + i + '-label');
+        if (row) row.style.display = nc >= i ? 'block' : 'none';
+        if (lbl && this.data.coachDays[i - 1] !== undefined) {
+          lbl.textContent = DAY_NAMES[this.data.coachDays[i - 1]] + ' Times';
+        }
+      }
     }
   },
 
