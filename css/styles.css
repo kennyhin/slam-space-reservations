@@ -401,10 +401,26 @@ h1, h2, h3 {
   box-shadow: 0 4px 14px rgba(0,0,0,0.16) !important;
   z-index: 10 !important;
 }
-.fc .fc-event-main { padding: 3px 7px !important; }
+.fc .fc-event-main { padding: 3px 7px !important; overflow: hidden; }
 .fc .fc-event-title { font-size: 12px !important; font-weight: 700 !important; line-height: 1.3 !important; }
 .fc .fc-event-time { font-size: 10px !important; font-weight: 500 !important; opacity: 0.85; }
 .fc .fc-timegrid-event-short .fc-event-title { font-size: 11px !important; }
+
+/* Compact custom event content — used by eventContent renderer */
+.fc-clean {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.fc-clean-time  { font-size: 10px; font-weight: 700; opacity: 0.9; flex-shrink: 0; }
+.fc-clean-title { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+/* Month view: stack time above title on very narrow cells */
+.fc-daygrid-event .fc-clean { gap: 4px; }
+.fc-daygrid-event .fc-clean-time  { font-size: 10px; }
+.fc-daygrid-event .fc-clean-title { font-size: 11px; }
 
 /* List view */
 .fc .fc-list-day-cushion { background: #FAFAFA; }

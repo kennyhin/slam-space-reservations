@@ -120,6 +120,15 @@ const CalendarView = {
       scrollTime: '08:30:00',
 
       eventTimeFormat: { hour: 'numeric', minute: '2-digit', meridiem: 'short' },
+      displayEventTime: false,
+
+      eventContent: (arg) => {
+        const short = CalendarView._shortTitle(arg.event.title);
+        const time  = CalendarView._shortTime(arg.event.start);
+        return {
+          html: `<div class="fc-clean"><span class="fc-clean-time">${time}</span><span class="fc-clean-title">${short}</span></div>`
+        };
+      },
 
       eventClick: (info) => {
         this._showEventDetail(info.event);
@@ -209,7 +218,7 @@ const CalendarView = {
           <div class="upcoming-panel-item" onclick="CalendarView._showEventDetailFromId('${this._escape(ev.id)}')">
             <div class="upcoming-panel-dot" style="background:${color}"></div>
             <div class="upcoming-panel-body">
-              <div class="upcoming-panel-title">${this._escape(ev.title)}</div>
+              <div class="upcoming-panel-title">${this._escape(this._shortTitle(ev.title))}</div>
               <div class="upcoming-panel-meta">${this._formatDateShort(start)} · ${this._formatTime(start)}–${this._formatTime(end)}</div>
               <span class="upcoming-panel-tag" style="background:${color}18;color:${color};border-color:${color}33">${spaceLabel}</span>
             </div>
@@ -336,6 +345,27 @@ const CalendarView = {
   },
   _formatTime(date) {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  },
+  // Compact time — "3P", "11A", "12:30P"
+  _shortTime(date) {
+    if (!date) return '';
+    let h = date.getHours();
+    const m = date.getMinutes();
+    const ap = h >= 12 ? 'P' : 'A';
+    h = h % 12; if (h === 0) h = 12;
+    return h + (m ? ':' + String(m).padStart(2, '0') : '') + ap;
+  },
+  // Strip space-name prefixes so the dot color carries that meaning.
+  //  "CAFE - HS VB Coach Training" → "HS VB Coach Training"
+  //  "Cafegym — Wanda Walton (Coach)" → "Wanda Walton"
+  //  "TURF: Cheer Practice" → "Cheer Practice"
+  _shortTitle(title) {
+    if (!title) return '';
+    let t = String(title).trim()
+      .replace(/^(cafegym|cafe|es\s*turf|turf|kinder\s*playground|kg|kp)\s*[-—:·|/]\s*/i, '')
+      .replace(/\s*\([^)]*\)\s*$/, '');
+    if (t.length > 22) t = t.slice(0, 21).trimEnd() + '…';
+    return t;
   },
   _escape(str) {
     if (!str) return '';
