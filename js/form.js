@@ -31,8 +31,22 @@ const ReservationForm = {
     const container = document.getElementById('form-container');
     if (!container) return;
 
-    const gradeOptions = CONFIG.GRADE_LEVELS.map((g) => `
-      <button type="button" class="bubble-btn" data-field="gradeLevel" data-value="${g}">${g}</button>
+    const gradeGroupOptions = (CONFIG.GRADE_GROUPS || []).map((g) => `
+      <button type="button" class="bubble-btn grade-group-btn" data-group="${g.id}"
+        onclick="ReservationForm._onGradeGroupClick('${g.id}')">${g.icon || ''} ${g.label}</button>
+    `).join('');
+
+    const gradeSubGroups = (CONFIG.GRADE_GROUPS || []).filter(g => g.subs).map((g) => `
+      <div class="grade-subs" id="grade-subs-${g.id}" style="display:none">
+        <div class="grade-subs-label">${g.label} — pick one</div>
+        <div class="bubble-group bubble-group-sub">
+          ${g.subs.map(s => `
+            <button type="button" class="bubble-btn bubble-btn-sub"
+              data-field="gradeLevel" data-value="${s.value}"
+              data-group="${g.id}">${s.label}</button>
+          `).join('')}
+        </div>
+      </div>
     `).join('');
 
     const spaceOptions = CONFIG.SPACES.map((s) => `
@@ -65,7 +79,8 @@ const ReservationForm = {
         </div>
         <div class="field-group">
           <label class="field-label">Grade Level / Role</label>
-          <div class="bubble-group" id="grade-bubbles">${gradeOptions}</div>
+          <div class="bubble-group" id="grade-bubbles">${gradeGroupOptions}</div>
+          ${gradeSubGroups}
         </div>
       </div>
 
@@ -224,6 +239,32 @@ const ReservationForm = {
   },
 
   // ----------------------------------------------------------
+  // Grade group click — expand sub-options or select Coach directly
+  // ----------------------------------------------------------
+  _onGradeGroupClick(groupId) {
+    const group = (CONFIG.GRADE_GROUPS || []).find(g => g.id === groupId);
+    if (!group) return;
+
+    // Direct-value group (Coach) → just select it
+    if (group.directValue) {
+      document.querySelectorAll('.grade-subs').forEach(el => el.style.display = 'none');
+      document.querySelectorAll('.grade-group-btn').forEach(b =>
+        b.classList.toggle('selected', b.dataset.group === groupId));
+      this._onGradeSelect(group.directValue);
+      return;
+    }
+
+    // Toggle open/close the sub-options; close others
+    const targetSubs = document.getElementById('grade-subs-' + groupId);
+    if (!targetSubs) return;
+    const wasOpen = targetSubs.style.display === 'block';
+    document.querySelectorAll('.grade-subs').forEach(el => el.style.display = 'none');
+    document.querySelectorAll('.grade-group-btn').forEach(b =>
+      b.classList.toggle('selected', !wasOpen && b.dataset.group === groupId));
+    targetSubs.style.display = wasOpen ? 'none' : 'block';
+  },
+
+  // ----------------------------------------------------------
   // Coach: grade selection triggers coach mode
   // ----------------------------------------------------------
   _onGradeSelect(value) {
@@ -238,6 +279,15 @@ const ReservationForm = {
       this.data.groupId   = null;
       const purposeEl = document.getElementById('purpose');
       if (purposeEl) purposeEl.value = '';
+    }
+    // Highlight the selected sub-bubble and keep parent group visually active
+    document.querySelectorAll('[data-field="gradeLevel"]').forEach(b =>
+      b.classList.toggle('selected', b.dataset.value === value));
+    const activeSubBtn = document.querySelector('.bubble-btn-sub.selected');
+    if (activeSubBtn) {
+      const parentGroupId = activeSubBtn.dataset.group;
+      document.querySelectorAll('.grade-group-btn').forEach(b =>
+        b.classList.toggle('selected', b.dataset.group === parentGroupId));
     }
     this._updateStep2Mode();
     this._updateStep4Mode();

@@ -995,3 +995,241 @@ input[type="time"].text-input, input[type="date"].text-input {
   /* Compact grade bubbles already handled by shorter labels */
   .bubble-btn { padding: 8px 14px; font-size: 13px; }
 }
+
+/* ============================================================
+   GRADE SUB-GROUPS — expandable role picker under top bubble
+   ============================================================ */
+.grade-subs {
+  margin-top: 12px;
+  padding: 14px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius-sm);
+  animation: fadeSlideUp 0.18s ease;
+}
+.grade-subs-label {
+  font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--gray-medium); margin-bottom: 10px;
+}
+.bubble-group-sub { gap: 8px; }
+.bubble-btn-sub {
+  padding: 7px 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+}
+.grade-group-btn.selected {
+  box-shadow: 0 2px 12px rgba(200,16,46,0.35) !important;
+}
+
+/* ============================================================
+   DARK THEME — applied globally
+   ============================================================ */
+:root {
+  --bg-base:     #0F1117;    /* page background */
+  --bg-elev-1:   #171A22;    /* card surfaces */
+  --bg-elev-2:   #1F232D;    /* raised surfaces (inputs, chips) */
+  --bg-elev-3:   #2A2F3D;    /* hover states */
+  --border-dk:   rgba(255,255,255,0.09);
+  --border-dk-2: rgba(255,255,255,0.16);
+  --text-hi:     #F2F4F8;    /* headings + primary text */
+  --text-mid:    #C6CBD5;    /* body text */
+  --text-lo:     #8A93A6;    /* labels + captions */
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-mid);
+}
+
+/* Reserve-page watermark — brighter on dark bg */
+body.reserve-page { background: var(--bg-base); }
+body.reserve-page::before {
+  opacity: 0.06;
+  filter: none;
+}
+
+/* ---- Site header ---- */
+.site-header {
+  background: var(--bg-elev-1);
+  border-bottom: 1px solid var(--border-dk);
+}
+.header-logo-img { filter: brightness(0) invert(1); }
+.header-logo-text { color: var(--text-lo); border-left-color: var(--border-dk); }
+.header-logo-text span { color: var(--text-hi); }
+.nav-link { color: var(--text-lo); }
+.nav-link:hover { background: var(--bg-elev-2); color: var(--text-hi); }
+.nav-link.active { background: var(--bg-elev-3); color: var(--text-hi); }
+.user-name { color: var(--text-lo); }
+.user-avatar { border-color: var(--border-dk); }
+.signout-btn { border-color: var(--border-dk); color: var(--text-lo); }
+.signout-btn:hover { border-color: var(--border-dk-2); color: var(--text-hi); }
+
+/* ---- Page titles ---- */
+h1, h2, h3 { color: var(--text-hi); }
+.page-title { color: var(--text-hi); }
+.page-subtitle { color: var(--text-lo); }
+.back-link { color: var(--text-lo); }
+.back-link:hover { color: var(--text-hi); }
+
+/* ---- Form card ---- */
+.form-card {
+  background: var(--bg-elev-1);
+  border-color: var(--border-dk);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 1px 3px rgba(0,0,0,0.3);
+}
+.step-title { color: var(--text-hi); }
+.step-subtitle { color: var(--text-lo); }
+.field-label { color: var(--text-mid); }
+
+/* ---- Inputs / textareas / date & time pickers ---- */
+.text-input {
+  background: var(--bg-elev-2);
+  border-color: var(--border-dk);
+  color: var(--text-hi);
+  color-scheme: dark;
+}
+.text-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(200,16,46,0.20);
+}
+input[type="time"].text-input, input[type="date"].text-input { color-scheme: dark; }
+.text-input::placeholder { color: var(--text-lo); }
+
+/* ---- Bubble buttons ---- */
+.bubble-btn {
+  background: var(--bg-elev-2);
+  border-color: var(--border-dk);
+  color: var(--text-mid);
+}
+.bubble-btn:hover { border-color: var(--primary); color: #fff; background: var(--bg-elev-3); }
+.bubble-btn.selected { color: #fff; }
+
+/* Space picker */
+.space-bubble-btn {
+  background: var(--bg-elev-2);
+  border-color: var(--border-dk);
+  color: var(--text-mid);
+}
+.space-bubble-btn:hover { color: var(--text-hi); }
+.space-bubble-btn.selected { color: #fff; }
+
+/* Suggestion chips (quick picks) */
+.suggestion-chip {
+  background: var(--bg-elev-2);
+  border-color: var(--border-dk);
+  color: var(--text-lo);
+}
+.suggestion-chip:hover { color: #fff; background: var(--primary); border-color: var(--primary); }
+
+/* ---- Progress bar ---- */
+.progress-dot {
+  background: var(--bg-elev-2);
+  border-color: var(--border-dk-2);
+  color: var(--text-lo);
+}
+.progress-line { background: var(--border-dk); }
+.progress-step.active .progress-dot { color: #fff; }
+.progress-label { color: var(--text-lo); }
+
+/* ---- Live preview card ---- */
+.preview-card {
+  background: var(--bg-elev-1);
+  border-color: var(--border-dk);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.preview-event-title { color: var(--text-hi); }
+.preview-empty-title { color: var(--text-lo); }
+.preview-field-label { color: var(--text-lo); }
+.preview-field-value { color: var(--text-hi); }
+.preview-field-empty { color: var(--text-lo); }
+.preview-field { border-top-color: var(--border-dk); }
+
+/* ---- Nav buttons ---- */
+.nav-btn {
+  background: var(--bg-elev-2);
+  border-color: var(--border-dk-2);
+  color: var(--text-mid);
+}
+.nav-btn:hover { background: var(--bg-elev-3); color: var(--text-hi); }
+.nav-btn.primary { color: #fff; }
+
+/* ---- Entry chips / dates list ---- */
+.entry-chip, .entries-header {
+  background: var(--bg-elev-2);
+  border-color: var(--border-dk);
+  color: var(--text-mid);
+}
+.entries-header { color: var(--text-hi); }
+
+/* ---- FullCalendar dark theming ---- */
+.fc { color: var(--text-mid); }
+.fc .fc-scrollgrid, .fc .fc-scrollgrid-section > *,
+.fc td, .fc th { border-color: var(--border-dk) !important; }
+.fc .fc-col-header-cell-cushion,
+.fc .fc-daygrid-day-number,
+.fc .fc-timegrid-slot-label-cushion,
+.fc .fc-toolbar-title { color: var(--text-mid) !important; }
+.fc .fc-day-today { background: rgba(200,16,46,0.10) !important; }
+.fc .fc-list-day-cushion { background: var(--bg-elev-2) !important; }
+.fc .fc-list-day-text, .fc .fc-list-day-side-text { color: var(--text-mid) !important; }
+.fc .fc-list-event:hover td { background: var(--bg-elev-2) !important; }
+.fc .fc-list-event-title { color: var(--text-hi) !important; }
+.fc .fc-list-empty { color: var(--text-lo) !important; }
+.fc .fc-button {
+  background: var(--bg-elev-2) !important;
+  border-color: var(--border-dk-2) !important;
+  color: var(--text-mid) !important;
+}
+.fc .fc-button:hover { background: var(--bg-elev-3) !important; color: var(--text-hi) !important; }
+.fc .fc-button-primary:not(:disabled).fc-button-active {
+  background: var(--primary) !important; border-color: var(--primary) !important; color: #fff !important;
+}
+
+/* ---- Sidebar + mini calendar ---- */
+.sidebar-left {
+  background: var(--bg-elev-1);
+  border-right-color: var(--border-dk);
+}
+.mini-cal-label { color: var(--text-hi); }
+.mini-cal-days-header span { color: var(--text-lo); }
+.mini-day { color: var(--text-mid); }
+.mini-day:hover { background: var(--bg-elev-3); }
+.mini-day.empty, .mini-day.other-month { color: rgba(255,255,255,0.16); }
+.mini-day.today { color: #fff !important; }
+.mini-nav-btn { color: var(--text-lo); }
+.mini-nav-btn:hover { background: var(--bg-elev-3); color: var(--text-hi); }
+.sidebar-divider { background: var(--border-dk); }
+
+/* ---- Right detail panel ---- */
+.detail-panel {
+  background: var(--bg-elev-1);
+  border-left-color: var(--border-dk);
+  color: var(--text-mid);
+}
+.detail-section-title { color: var(--text-mid); }
+.detail-event-title { color: var(--text-hi); }
+.detail-empty, .detail-empty-sub { color: var(--text-lo); }
+.upcoming-panel-item { background: var(--bg-elev-2); border-color: var(--border-dk); }
+.upcoming-panel-item:hover { background: var(--bg-elev-3); }
+.upcoming-panel-title { color: var(--text-hi); }
+.upcoming-panel-meta { color: var(--text-lo); }
+.detail-row, .detail-label { color: var(--text-lo); }
+.detail-value { color: var(--text-hi); }
+
+/* ---- Grade sub-groups on dark ---- */
+.grade-subs {
+  background: rgba(255,255,255,0.03);
+  border-color: var(--border-dk);
+}
+
+/* ---- Footer ---- */
+.site-footer { background: var(--bg-elev-1); border-top: 1px solid var(--border-dk); color: var(--text-lo); }
+
+/* ---- Modal (mobile event popup) ---- */
+.modal-content { background: var(--bg-elev-1); color: var(--text-mid); }
+.modal-title { color: var(--text-hi); }
+.modal-detail { border-bottom-color: var(--border-dk); }
+.modal-label { color: var(--text-lo); }
+.modal-value { color: var(--text-hi); }
+.modal-close-btn { background: var(--bg-elev-2); border-color: var(--border-dk-2); color: var(--text-mid); }
+.modal-close-btn:hover { background: var(--bg-elev-3); }

@@ -51,9 +51,70 @@ const CONFIG = {
   ],
 
   // ----------------------------------------------------------
-  // 5. Grade levels shown in the form
+  // 5. Grade / role groups shown in Step 1 of the form
+  //    Top-level click reveals sub-options. `value` is what gets
+  //    stored + emailed; `label` is what the button shows.
+  //    "Coach" has no subs — it selects directly and triggers the
+  //    coach practice-schedule flow.
   // ----------------------------------------------------------
-  GRADE_LEVELS: ['Kinder', '1st', '2nd', '3rd', '4th', '5th', 'Staff', 'Coach'],
+  GRADE_GROUPS: [
+    {
+      id: 'elementary',
+      label: 'Elementary',
+      icon: '🎒',
+      subs: [
+        { value: 'Kinder', label: 'Kinder' },
+        { value: '1st Grade', label: '1st Grade' },
+        { value: '2nd Grade', label: '2nd Grade' },
+        { value: '3rd Grade', label: '3rd Grade' },
+        { value: '4th Grade', label: '4th Grade' },
+        { value: '5th Grade', label: '5th Grade' },
+        { value: 'ES Specialist', label: 'Specialist' },
+        { value: 'ES Special Teams', label: 'Special Teams' },
+        { value: 'ES Admin', label: 'Admin' },
+        { value: 'ES Instructional Assistant', label: 'Instructional Assistant' },
+        { value: 'ES Instructional Coach', label: 'Instructional Coach' },
+        { value: 'ES Office Staff', label: 'Office Staff' },
+      ],
+    },
+    {
+      id: 'middle',
+      label: 'Middle School',
+      icon: '📚',
+      subs: [
+        { value: '6th Grade', label: '6th Grade' },
+        { value: '7th Grade', label: '7th Grade' },
+        { value: '8th Grade', label: '8th Grade' },
+        { value: 'MS Special Teams', label: 'Special Teams' },
+        { value: 'MS Admin', label: 'Admin' },
+        { value: 'MS Instructional Assistant', label: 'Instructional Assistant' },
+        { value: 'MS Instructional Coach', label: 'Instructional Coach' },
+        { value: 'MS Office Staff', label: 'Office Staff' },
+      ],
+    },
+    {
+      id: 'high',
+      label: 'High School',
+      icon: '🎓',
+      subs: [
+        { value: '9th Grade', label: '9th Grade' },
+        { value: '10th Grade', label: '10th Grade' },
+        { value: '11th Grade', label: '11th Grade' },
+        { value: '12th Grade', label: '12th Grade' },
+        { value: 'HS Special Teams', label: 'Special Teams' },
+        { value: 'HS Admin', label: 'Admin' },
+        { value: 'HS Instructional Assistant', label: 'Instructional Assistant' },
+        { value: 'HS Instructional Coach', label: 'Instructional Coach' },
+        { value: 'HS Office Staff', label: 'Office Staff' },
+      ],
+    },
+    {
+      id: 'coach',
+      label: 'Coach',
+      icon: '🏆',
+      directValue: 'Coach',   // no subs — click sets gradeLevel = 'Coach'
+    },
+  ],
 
   // ----------------------------------------------------------
   // 6. How many days ahead to show on the calendar
