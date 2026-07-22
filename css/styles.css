@@ -37,7 +37,7 @@
 html, body { height: 100%; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Manrope', 'Inter', 'Segoe UI', system-ui, sans-serif;
   background: var(--gray-light);
   color: #111827;
   line-height: 1.6;
@@ -120,14 +120,15 @@ h1, h2, h3 {
   display: flex; align-items: center; justify-content: space-between;
   height: 100%; gap: 16px; overflow: hidden;
 }
-.header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-.header-logo-img { display: none; }
+.header-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none; }
+.header-logo-img { display: block; height: 34px; width: auto; object-fit: contain; }
 .header-logo-text {
-  font-family: 'Barlow Condensed', sans-serif;
-  font-weight: 700; font-size: 17px; color: #BBBBBB;
-  text-transform: uppercase; letter-spacing: 0.10em; line-height: 1;
+  font-family: 'Barlow Condensed', 'Impact', sans-serif;
+  font-weight: 700; font-size: 14px; color: #6B7280;
+  text-transform: uppercase; letter-spacing: 0.14em; line-height: 1;
+  border-left: 1.5px solid #E5E7EB; padding-left: 10px;
 }
-.header-logo-text span { color: var(--primary); }
+.header-logo-text span { color: #111; }
 .header-nav { display: flex; align-items: center; gap: 2px; flex: 1; justify-content: center; }
 .nav-link {
   display: inline-flex; align-items: center;
@@ -545,11 +546,31 @@ h1, h2, h3 {
 /* ============================================================
    RESERVE PAGE — 2-column layout with live preview
    ============================================================ */
+/* Reserve page: bull mascot as a subtle watermark behind content */
+body.reserve-page { background: var(--gray-light); }
+body.reserve-page::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: url('../images/slam-bull-mascot.png') no-repeat center center / min(720px, 70vw) auto;
+  opacity: 0.05;
+  filter: grayscale(0.4);
+  z-index: 0; pointer-events: none;
+}
+body.reserve-page .site-header,
+body.reserve-page .page-content,
+body.reserve-page .site-footer { position: relative; z-index: 1; }
+@media (max-width: 900px) {
+  body.reserve-page::before { display: none; }
+}
+
 .reserve-layout {
   display: grid;
-  grid-template-columns: 1fr 250px;
-  gap: 24px;
+  grid-template-columns: minmax(0, 680px) 280px;
+  gap: 32px;
   align-items: start;
+  justify-content: center;
+  max-width: 1040px;
+  margin: 0 auto;
 }
 .reserve-layout.step-review {
   display: flex;
@@ -557,13 +578,13 @@ h1, h2, h3 {
 }
 .reserve-layout.step-review .preview-card { display: none; }
 .reserve-layout.step-review .form-wrapper {
-  max-width: 640px;
+  max-width: 680px;
   width: 100%;
   margin: 0;
 }
 
 /* Form fills its column fully — no internal centering */
-.reserve-layout .form-wrapper { max-width: 100%; margin: 0; }
+.reserve-layout .form-wrapper { max-width: 100%; margin: 0; width: 100%; }
 .reserve-layout .form-card { width: 100%; }
 
 /* Live preview card */
@@ -666,8 +687,13 @@ h1, h2, h3 {
    PAGE LAYOUT — used by reserve.html form
    ============================================================ */
 .page-content { max-width: 1200px; margin: 0 auto; padding: 36px 24px 72px; }
-.page-header { margin-bottom: 28px; }
-.page-title { font-family: 'Barlow Condensed', sans-serif; font-size: 44px; font-weight: 700; color: var(--slam-black); text-transform: uppercase; letter-spacing: 0.02em; line-height: 1; }
+.page-header { margin-bottom: 28px; text-align: center; max-width: 1040px; margin-left: auto; margin-right: auto; }
+.page-header .back-link { display: inline-block; margin-bottom: 12px; }
+.page-title {
+  font-family: 'Bebas Neue', 'Barlow Condensed', 'Impact', sans-serif;
+  font-size: 56px; font-weight: 400; color: var(--slam-black);
+  text-transform: uppercase; letter-spacing: 0.04em; line-height: 1;
+}
 .page-title span { color: var(--primary); }
 .page-subtitle { font-size: 15px; color: var(--gray-medium); margin-top: 6px; }
 

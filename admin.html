@@ -48,15 +48,23 @@
     }
     .header-left { display: flex; align-items: center; gap: 12px; }
     .header-logo {
-      font-family: 'Barlow Condensed', sans-serif;
-      font-weight: 800;
-      font-size: 18px;
-      color: #fff;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 10px;
       text-decoration: none;
     }
-    .header-logo span { color: var(--red); }
+    .header-logo-img {
+      height: 30px; width: auto; display: block;
+      filter: brightness(0) invert(1); /* white on dark bar */
+    }
+    .header-logo-text {
+      font-family: 'Barlow Condensed', 'Impact', sans-serif;
+      font-weight: 700; font-size: 13px;
+      color: #9CA3AF; letter-spacing: 0.14em;
+      text-transform: uppercase; line-height: 1;
+      border-left: 1.5px solid rgba(255,255,255,0.15);
+      padding-left: 10px;
+    }
     .header-badge {
       background: var(--red);
       color: #fff;
@@ -368,7 +376,10 @@
 <!-- ── Header ──────────────────────────────────────────────── -->
 <header class="header">
   <div class="header-left">
-    <a class="header-logo" href="admin.html">SLAM <span>Reservations</span></a>
+    <a class="header-logo" href="admin.html">
+      <img src="images/slam-nevada-red.png" alt="SLAM! Nevada" class="header-logo-img" />
+      <span class="header-logo-text">Reservations</span>
+    </a>
     <div class="header-badge">Admin</div>
   </div>
   <div class="header-right" id="header-user" style="display:none;">
