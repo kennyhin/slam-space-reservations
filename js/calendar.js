@@ -123,8 +123,19 @@ const CalendarView = {
       displayEventTime: false,
 
       eventContent: (arg) => {
-        const short = CalendarView._shortTitle(arg.event.title);
-        const time  = CalendarView._shortTime(arg.event.start);
+        const short   = CalendarView._shortTitle(arg.event.title);
+        const time    = CalendarView._shortTime(arg.event.start);
+        const color   = arg.event.backgroundColor || '#888';
+        const isMonth = arg.view.type.startsWith('dayGrid');
+        if (isMonth) {
+          return {
+            html: `<div class="fc-clean fc-clean-month">
+              <span class="fc-clean-dot" style="background:${color}"></span>
+              <span class="fc-clean-time">${time}</span>
+              <span class="fc-clean-title">${short}</span>
+            </div>`
+          };
+        }
         return {
           html: `<div class="fc-clean"><span class="fc-clean-time">${time}</span><span class="fc-clean-title">${short}</span></div>`
         };
